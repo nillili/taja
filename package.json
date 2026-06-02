@@ -1,0 +1,26 @@
+{
+  "name": "taja",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5173",
+    "dev:full": "concurrently \"vite --port 5173\" \"wrangler pages dev --proxy 5173 --port 8788\"",
+    "build": "vite build",
+    "preview": "vite preview",
+    "deploy": "npm run build && wrangler pages deploy dist",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1"
+  },
+  "devDependencies": {
+    "@vitejs/plugin-react": "^4.3.4",
+    "concurrently": "^9.2.1",
+    "vite": "^6.0.7",
+    "vitest": "^2.1.8",
+    "wrangler": "^4.96.0"
+  }
+}

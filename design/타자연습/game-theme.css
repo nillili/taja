@@ -1,0 +1,382 @@
+/* =====================================================================
+   GAME THEME — for elementary 5~6th graders. Playful, gamey, slightly
+   thrilling. Activated by html[data-theme-style="game"].
+   Overrides the paper theme by re-binding CSS variables and re-skinning
+   key components. Light + dark variants supported via data-theme.
+   ===================================================================== */
+
+html[data-theme-style="game"] {
+  /* light defaults */
+  --paper:        #fff6dc;              /* cream */
+  --paper-deep:   #ffffff;              /* card surface */
+  --paper-edge:   #ffe9a3;
+  --ink:          #1f1d3a;              /* deep navy */
+  --ink-soft:     #4a4670;
+  --ink-faint:    #8b86b0;
+  --rule:         #ffd97a;
+  --accent:       #2563eb;              /* electric blue */
+  --accent-soft:  #dbeafe;
+  --stamp:        #ef4444;
+
+  /* game-specific tokens */
+  --g-yellow:     #ffc83a;
+  --g-blue:       #5fb8ff;
+  --g-coral:      #ff6b6b;
+  --g-mint:       #4ddbb0;
+  --g-purple:     #b785ff;
+  --g-shadow:     #1f1d3a;
+  --radius:       16px;
+  --radius-sm:    10px;
+  --font-display: "Jua", "Black Han Sans", "Noto Serif KR", sans-serif;
+  --font-body:    "Gowun Dodum", "Noto Serif KR", sans-serif;
+}
+html[data-theme-style="game"][data-theme="dark"] {
+  --paper:        #161430;
+  --paper-deep:   #221f44;
+  --paper-edge:   #2b2856;
+  --ink:          #f5f1ff;
+  --ink-soft:     #c5bfe6;
+  --ink-faint:    #8a86b8;
+  --rule:         #3b3672;
+  --accent:       #ffd13a;
+  --accent-soft:  #2b2856;
+  --stamp:        #ff7a8a;
+  --g-shadow:     #06041a;
+}
+
+/* ---- Base body/page ------------------------------------------------- */
+html[data-theme-style="game"] body {
+  font-family: var(--font-body);
+}
+html[data-theme-style="game"] .page {
+  /* swap the paper grain for soft sky tints */
+  background-color: var(--paper);
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -10%, color-mix(in oklab, var(--g-blue) 25%, transparent), transparent 70%),
+    radial-gradient(circle at 95% 95%, color-mix(in oklab, var(--g-coral) 18%, transparent), transparent 50%);
+  background-blend-mode: normal;
+}
+html[data-theme-style="game"][data-theme="dark"] .page {
+  background-image:
+    radial-gradient(ellipse 80% 40% at 50% -10%, color-mix(in oklab, var(--g-purple) 30%, transparent), transparent 70%),
+    radial-gradient(circle at 95% 95%, color-mix(in oklab, var(--g-blue) 20%, transparent), transparent 55%);
+}
+
+/* ---- Header --------------------------------------------------------- */
+html[data-theme-style="game"] .app-header {
+  border-bottom: 0;
+  background: transparent;
+}
+html[data-theme-style="game"] .logo-mark {
+  border: 2px solid var(--ink);
+  border-radius: 12px;
+  background: var(--g-yellow);
+  color: var(--ink);
+  font-family: var(--font-display);
+  box-shadow: 3px 3px 0 var(--g-shadow);
+  transform: translateY(4px);
+}
+html[data-theme-style="game"] .logo-title {
+  font-family: var(--font-display);
+  font-size: 32px;
+  letter-spacing: 0;
+}
+html[data-theme-style="game"] .logo-sub {
+  display: none;
+}
+
+/* tabs become rounded chip nav */
+html[data-theme-style="game"] .tabs {
+  gap: 8px;
+}
+html[data-theme-style="game"] .tab {
+  font-family: var(--font-display);
+  font-size: 16px;
+  padding: 8px 16px 9px;
+  border-radius: 999px;
+  border: 2px solid transparent;
+  color: var(--ink-soft);
+  letter-spacing: 0;
+}
+html[data-theme-style="game"] .tab .tab-num {
+  display: none;
+}
+html[data-theme-style="game"] .tab:hover {
+  color: var(--ink);
+  background: color-mix(in oklab, var(--g-yellow) 30%, transparent);
+}
+html[data-theme-style="game"] .tab.is-active {
+  background: var(--ink);
+  color: var(--paper);
+  font-weight: 400;
+}
+html[data-theme-style="game"] .tab.is-active::after { display: none; }
+
+/* ---- Section heads -------------------------------------------------- */
+html[data-theme-style="game"] .section-head h2 {
+  font-family: var(--font-display);
+  font-size: 26px;
+  letter-spacing: 0;
+}
+html[data-theme-style="game"] .section-head .roman {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px; height: 28px;
+  background: var(--g-yellow);
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  border-radius: 8px;
+  font-family: var(--font-display);
+  font-size: 14px;
+  letter-spacing: 0;
+  box-shadow: 2px 2px 0 var(--g-shadow);
+  transform: translateY(-2px);
+}
+html[data-theme-style="game"] .section-head .rule {
+  background: transparent;
+  border-bottom: 2px dotted var(--rule);
+  height: 0;
+}
+html[data-theme-style="game"] .section-head .section-aside {
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-soft);
+  background: var(--g-yellow);
+  color: var(--ink);
+  padding: 4px 10px 5px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+}
+
+/* ---- Mascot banner (only visible in game theme) -------------------- */
+.game-banner { display: none; }
+html[data-theme-style="game"] .game-banner {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  align-items: center;
+  gap: 16px;
+  background: linear-gradient(135deg, var(--g-yellow) 0%, color-mix(in oklab, var(--g-yellow) 70%, var(--g-coral) 30%) 100%);
+  border: 2.5px solid var(--ink);
+  border-radius: 18px;
+  padding: 16px 22px;
+  margin-bottom: 24px;
+  box-shadow: 5px 5px 0 var(--g-shadow);
+  position: relative;
+  overflow: hidden;
+}
+html[data-theme-style="game"][data-theme="dark"] .game-banner {
+  background: linear-gradient(135deg, color-mix(in oklab, var(--g-purple) 70%, var(--g-blue) 30%) 0%, var(--g-blue) 100%);
+}
+.game-banner .greet-text {
+  font-family: var(--font-display);
+  font-size: 22px;
+  color: var(--ink);
+  line-height: 1.25;
+}
+.game-banner .greet-sub {
+  font-family: var(--font-body);
+  font-size: 13px;
+  color: var(--ink-soft);
+  margin-top: 4px;
+}
+.game-banner .coins {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--ink);
+  color: var(--g-yellow);
+  font-family: var(--font-display);
+  font-size: 18px;
+  padding: 8px 14px 9px;
+  border-radius: 999px;
+  border: 2px solid var(--ink);
+}
+.game-banner .coins .coin-icon {
+  width: 16px; height: 16px;
+  border-radius: 50%;
+  background: var(--g-yellow);
+  border: 1.5px solid var(--ink);
+  display: inline-block;
+}
+
+/* dotted confetti scattered behind the banner */
+.game-banner::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 10% 30%, var(--ink) 1.5px, transparent 2px),
+    radial-gradient(circle at 80% 80%, var(--ink) 1.5px, transparent 2px),
+    radial-gradient(circle at 60% 20%, var(--ink) 1.5px, transparent 2px),
+    radial-gradient(circle at 30% 80%, var(--ink) 1.5px, transparent 2px),
+    radial-gradient(circle at 90% 40%, var(--ink) 1.5px, transparent 2px);
+  opacity: 0.18;
+  pointer-events: none;
+}
+
+/* ---- Menu cards: colorful per-index --------------------------------- */
+html[data-theme-style="game"] .menu-card {
+  border: 2.5px solid var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper-deep);
+  box-shadow: 5px 5px 0 var(--g-shadow);
+  padding: 18px 20px 56px;
+  font-family: var(--font-body);
+  transition: transform .12s ease, box-shadow .12s ease;
+}
+html[data-theme-style="game"] .menu-card:hover {
+  transform: translate(-3px, -3px);
+  box-shadow: 8px 8px 0 var(--g-shadow);
+}
+html[data-theme-style="game"] .menu-card:nth-child(1) { background: color-mix(in oklab, var(--g-yellow) 28%, var(--paper-deep)); }
+html[data-theme-style="game"] .menu-card:nth-child(2) { background: color-mix(in oklab, var(--g-blue)   28%, var(--paper-deep)); }
+html[data-theme-style="game"] .menu-card:nth-child(3) { background: color-mix(in oklab, var(--g-coral)  28%, var(--paper-deep)); }
+html[data-theme-style="game"] .menu-card:nth-child(4) { background: color-mix(in oklab, var(--g-mint)   30%, var(--paper-deep)); }
+html[data-theme-style="game"] .menu-card .num {
+  font-family: var(--font-body);
+  background: var(--ink);
+  color: var(--paper-deep);
+  padding: 3px 9px 4px;
+  border-radius: 999px;
+  font-size: 11px;
+  letter-spacing: 0.05em;
+  display: inline-block;
+}
+html[data-theme-style="game"] .menu-card .ko {
+  font-family: var(--font-display);
+  font-size: 28px;
+  letter-spacing: 0;
+  margin-top: 10px;
+}
+html[data-theme-style="game"] .menu-card .desc {
+  font-style: normal;
+  font-size: 13px;
+  color: var(--ink-soft);
+}
+html[data-theme-style="game"] .menu-card .arrow {
+  width: 36px; height: 36px;
+  background: var(--ink);
+  color: var(--paper-deep);
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-body);
+  font-size: 18px;
+  bottom: 14px; right: 14px;
+}
+
+/* ---- Ranking table -------------------------------------------------- */
+html[data-theme-style="game"] .rank-tab {
+  border: 2px solid var(--ink);
+  border-bottom: 0;
+  border-radius: var(--radius-sm) var(--radius-sm) 0 0;
+  font-family: var(--font-display);
+  background: var(--paper-deep);
+  padding: 9px 22px 10px;
+  margin-bottom: -2px;
+}
+html[data-theme-style="game"] .rank-tab + .rank-tab { margin-left: 6px; }
+html[data-theme-style="game"] .rank-tab.is-active {
+  background: var(--g-yellow);
+  border-color: var(--ink);
+  border-bottom: 2px solid var(--g-yellow);
+  color: var(--ink);
+}
+html[data-theme-style="game"] .rank-tabs {
+  border-bottom: 2.5px solid var(--ink);
+}
+html[data-theme-style="game"] .rank-table-wrap {
+  border: 2.5px solid var(--ink);
+  border-top: 0;
+  border-radius: 0 0 var(--radius) var(--radius);
+  background: var(--paper-deep);
+  box-shadow: 5px 5px 0 var(--g-shadow);
+}
+html[data-theme-style="game"] .rank-table thead th {
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0;
+  text-transform: none;
+  color: var(--ink-soft);
+  background: var(--paper-deep);
+}
+html[data-theme-style="game"] .rank-table tbody td {
+  font-family: var(--font-body);
+}
+html[data-theme-style="game"] .rank-table .col-name {
+  font-family: var(--font-display);
+  font-size: 18px;
+  letter-spacing: 0;
+}
+html[data-theme-style="game"] .rank-table .big-num {
+  font-family: var(--font-display);
+  font-size: 19px;
+  font-weight: 400;
+}
+html[data-theme-style="game"] .rank-table .medal {
+  width: 26px; height: 26px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  font-family: var(--font-display);
+  font-size: 14px;
+  color: var(--ink);
+  border: 2px solid var(--ink);
+  font-style: normal;
+}
+html[data-theme-style="game"] .rank-table tr:nth-child(1) .medal { background: #ffd700; }
+html[data-theme-style="game"] .rank-table tr:nth-child(2) .medal { background: #d8d8d8; }
+html[data-theme-style="game"] .rank-table tr:nth-child(3) .medal { background: #d08a4a; color: #fff; }
+html[data-theme-style="game"] .rank-table tbody tr.is-top {
+  background: color-mix(in oklab, var(--g-yellow) 14%, transparent);
+}
+
+/* ---- Footer hint ---------------------------------------------------- */
+html[data-theme-style="game"] .footer-hint {
+  font-family: var(--font-body);
+  font-size: 12px;
+  letter-spacing: 0;
+  border-top: 2px dotted var(--rule);
+}
+
+/* ---- Practice placeholder (other screens) -------------------------- */
+html[data-theme-style="game"] .screen-meta .chapter {
+  font-family: var(--font-display);
+  letter-spacing: 0;
+  background: var(--g-yellow);
+  color: var(--ink);
+  padding: 3px 10px 4px;
+  border-radius: 999px;
+  border: 1.5px solid var(--ink);
+}
+html[data-theme-style="game"] .screen-meta .screen-title {
+  font-family: var(--font-display);
+  font-size: 36px;
+  letter-spacing: 0;
+}
+html[data-theme-style="game"] .screen-meta .screen-sub {
+  font-style: normal;
+}
+html[data-theme-style="game"] .placeholder {
+  border: 2.5px dashed var(--ink);
+  border-radius: var(--radius);
+  background: var(--paper-deep);
+  color: var(--ink-soft);
+}
+html[data-theme-style="game"] .placeholder .ph-label {
+  font-family: var(--font-body);
+  letter-spacing: 0;
+  text-transform: none;
+}
+html[data-theme-style="game"] .placeholder .ph-title {
+  font-family: var(--font-display);
+  font-size: 22px;
+}
+html[data-theme-style="game"] .placeholder .ph-desc {
+  font-style: normal;
+}

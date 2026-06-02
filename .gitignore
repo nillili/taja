@@ -1,0 +1,22 @@
+# 의존성 / 빌드 산출물
+node_modules/
+dist/
+dist-ssr/
+*.local
+
+# wrangler 로컬 캐시/임시파일 (커밋 불필요)
+.wrangler/
+
+# 디자인 핸드오프 캐시(제품 소스 아님)
+.design-live/
+.design-url
+
+# 썸네일 / 잡파일
+.thumbnail
+**/.thumbnail
+
+# 에디터 / OS
+.DS_Store
+.vscode/*
+!.vscode/extensions.json
+*.log

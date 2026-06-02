@@ -1,0 +1,10 @@
+name = "taja"
+compatibility_date = "2024-09-23"
+pages_build_output_dir = "dist"
+
+# D1 데이터베이스 바인딩
+# database_id는 "wrangler d1 create taja-db" 실행 후 출력된 값으로 교체
+[[d1_databases]]
+binding      = "DB"
+database_name = "taja-db"
+database_id  = "b92ae9c0-3d14-408f-aa38-24a3a6c07b18"
