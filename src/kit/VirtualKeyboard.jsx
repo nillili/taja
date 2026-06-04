@@ -1,6 +1,49 @@
 import { useState, useEffect } from "react";
 import { KB_ROWS, FINGER, KH, GAP, kw, ROW_WIDTH, KB_HEIGHT } from "./keyboard.js";
 
+/* ── 키 센터 위치 맵 (unscaled keyboard 좌표) ───────────────────────── */
+const KEY_CENTERS = (() => {
+  const map = {};
+  KB_ROWS.forEach((row, ri) => {
+    let x = 0;
+    row.forEach(key => {
+      const w = kw(key.w);
+      if (key.type !== "pad") map[key.c] = { x: x + w / 2, y: ri * (KH + GAP) + KH / 2 };
+      x += w + GAP;
+    });
+  });
+  return map;
+})();
+
+/* 손가락 끝점 SVG 좌표 (왼손 기준, viewBox 0 0 240 220) */
+const FINGERTIP = {
+  pinky:  { x: 83,  y: 30  },
+  ring:   { x: 119, y: 14  },
+  middle: { x: 149, y: 4   },
+  index:  { x: 185, y: 27  },
+  thumb:  { x: 237, y: 150 },
+};
+
+/* 손 div 크기 및 SVG → keyboard 좌표 변환 상수 */
+const HAND_DIV_W = Math.round(0.46 * ROW_WIDTH);
+const HAND_DIV_H = KB_HEIGHT + 12;
+const SVG_SC  = Math.min(HAND_DIV_W / 240, HAND_DIV_H / 220);
+const SVG_DX  = (HAND_DIV_W - 240 * SVG_SC) / 2;
+const SVG_DY  = (HAND_DIV_H - 220 * SVG_SC) / 2;
+const ORG_L   = Math.round(0.02 * ROW_WIDTH);              // left:2% (왼손 div 왼쪽 끝)
+const ORG_R   = ROW_WIDTH - ORG_L - HAND_DIV_W;           // right:2% (오른손 div 왼쪽 끝)
+const ORG_TOP = -2;                                         // top:-2px
+
+function getTipPos(finger, side) {
+  const t = FINGERTIP[finger];
+  if (!t) return null;
+  const sx = side === "R" ? 240 - t.x : t.x; // 오른손은 SVG가 좌우 반전
+  return {
+    x: (side === "R" ? ORG_R : ORG_L) + SVG_DX + sx * SVG_SC,
+    y: ORG_TOP + SVG_DY + t.y * SVG_SC,
+  };
+}
+
 /* ── 키캡 ─────────────────────────────────────────────────────────── */
 function KeyCap({ data, isTarget, isPressed }) {
   const { main, top, type, w } = data;
@@ -91,28 +134,46 @@ function HandSVG({ side, highlightFinger }) {
 }
 
 function HandsOverlay({ targetCode, shiftCode }) {
-  // 타겟 키 + (필요 시) Shift 키의 손가락을 양손에 합쳐 강조
-  let leftFinger = null;
-  let rightFinger = null;
-  for (const code of [targetCode, shiftCode]) {
+  // 각 손의 담당 손가락 + 담당 키코드 파악
+  let leftFinger = null, leftCode = null;
+  let rightFinger = null, rightCode = null;
+  for (const code of [targetCode, shiftCode].filter(Boolean)) {
     const f = FINGER[code] || "";
-    if (f.startsWith("L-")) leftFinger = f.slice(2);
-    else if (f.startsWith("R-")) rightFinger = f.slice(2);
-    else if (f === "thumb") { leftFinger = leftFinger || "thumb"; rightFinger = rightFinger || "thumb"; }
+    if (f.startsWith("L-")) {
+      if (!leftFinger) { leftFinger = f.slice(2); leftCode = code; }
+    } else if (f.startsWith("R-")) {
+      if (!rightFinger) { rightFinger = f.slice(2); rightCode = code; }
+    } else if (f === "thumb") {
+      if (!leftFinger)  { leftFinger  = "thumb"; leftCode  = code; }
+      if (!rightFinger) { rightFinger = "thumb"; rightCode = code; }
+    }
   }
 
-  const handStyle = {
+  // 손가락 끝이 담당 키 위에 오도록 translate 계산
+  const calcShift = (finger, side, code) => {
+    if (!finger || !code) return { x: 0, y: 0 };
+    const kc  = KEY_CENTERS[code];
+    const tip = getTipPos(finger, side);
+    if (!kc || !tip) return { x: 0, y: 0 };
+    return { x: kc.x - tip.x, y: kc.y - tip.y };
+  };
+
+  const ls = calcShift(leftFinger,  "L", leftCode);
+  const rs = calcShift(rightFinger, "R", rightCode);
+
+  const base = {
     position: "absolute", top: "-2px",
     width: "46%", height: "calc(100% + 12px)",
-    pointerEvents: "none", transition: "opacity 0.15s",
+    pointerEvents: "none",
+    transition: "transform 0.22s cubic-bezier(.22,.68,0,1.1)",
   };
 
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 5 }}>
-      <div style={{ ...handStyle, left: "2%" }}>
+      <div style={{ ...base, left: "2%", transform: `translate(${ls.x}px, ${ls.y}px)` }}>
         <HandSVG side="L" highlightFinger={leftFinger} />
       </div>
-      <div style={{ ...handStyle, right: "2%" }}>
+      <div style={{ ...base, right: "2%", transform: `translate(${rs.x}px, ${rs.y}px)` }}>
         <HandSVG side="R" highlightFinger={rightFinger} />
       </div>
     </div>
