@@ -15,8 +15,8 @@
 | D1 DB ID | b92ae9c0-3d14-408f-aa38-24a3a6c07b18 |
 | 관리자 PIN | Pages 환경변수 `ADMIN_PIN` (설정됨). 미설정 시 코드 기본값 사용 |
 
-> 구글시트/Apps Script는 더 이상 쓰지 않는다. 낱말·문장의 원본은 D1이고,
-> 관리 화면(⚙ → PIN)에서 직접 고친다. `apps-script/`는 참고용 흔적이라 지워도 된다.
+> 낱말·문장의 원본은 D1이다. 관리 화면(⚙ → PIN)에서 직접 고친다.
+> 구글시트/Apps Script 연동은 제거했다(히스토리에는 남아 있다).
 
 ---
 
@@ -30,7 +30,7 @@
 
 ### 낱말연습 (CH.03)
 - 1~4단계 × 기본/심화, 각 ~100개 단어
-- 데이터 출처: 구글시트 `낱말_1_기본` 탭 → `src/data/wordSteps.js`에 내장
+- 데이터 출처: D1 `words` 테이블 (설정 화면에서 수정). 실패 시 `src/data/wordSteps.js` 내장값
 - 단어 10개 무작위 출현 (Fisher-Yates)
 - 된소리(4단계) Shift 처리 — 자리연습과 동일한 방식
 
@@ -54,7 +54,7 @@
 ### 내가 쓴 글 (입력칸)
 - 글자 띠 아래에 지금까지 입력한 내용을 입력칸처럼 표시 — `src/kit/TypedBox.jsx`
 - **한 단위를 성공하면 비워진다** — 자리연습은 자모 하나, 낱말연습은 낱말 하나
-  (완성된 글자를 0.45초 보여 준 뒤 지움. 다음 키를 치면 바로 교체)
+  (완성된 글자를 0.16초 번쩍 보여 준 뒤 지움. 다음 키를 치면 바로 교체)
 - 낱말연습은 조합 과정이 그대로 보인다: `ㅎ → 하 → 하ㅁ → 하마` → 지워짐
 - **타수는 이 성공 시점에만 계산·갱신**된다 (가만히 있어도 숫자가 떨어지지 않음)
 - 단문/장문 구현 시: `<TypedBox align="left" width="100%" />` (한 문장이 들어가게 왼쪽 정렬)
@@ -112,8 +112,8 @@ API/DB     Cloudflare Pages Function + D1 (SQLite)
            API 실패 시 src/data/wordSteps.js 내장 데이터로 fallback
            시드: node scripts/gen-word-seed.mjs → db/seed_words.sql (787개)
 문장데이터  D1 sentences 테이블 (단문/장문 공용) — db/seed_sentences.sql
-기록저장   D1 직접 (Apps Script는 사용 안 함)
-테스트     Vitest (50개: 한글분해·정확도·레벨연결 22 + 관리자 API·스키마 28)
+기록저장   D1 직접
+테스트     Vitest (54개: 한글분해·정확도·레벨연결 22 + API·스키마 32)
            API 테스트는 node:sqlite에 db/schema.sql을 적용해 제약까지 검증
 ```
 
@@ -159,8 +159,11 @@ npx wrangler d1 execute taja-db --local --file=db/schema.sql
 npx wrangler d1 execute taja-db --local --file=db/seed_words.sql
 npx wrangler d1 execute taja-db --local --file=db/seed_sentences.sql
 
-# 원격(실서버) 스키마 적용
+# 원격(실서버) 스키마 + 시드 적용
+#  · 전부 IF NOT EXISTS / INSERT OR IGNORE라 기존 데이터는 그대로다
 npx wrangler d1 execute taja-db --remote --file=db/schema.sql
+npx wrangler d1 execute taja-db --remote --file=db/seed_words.sql
+npx wrangler d1 execute taja-db --remote --file=db/seed_sentences.sql
 
 # 원격 데이터 확인
 npx wrangler d1 execute taja-db --remote --command "SELECT * FROM today_records LIMIT 10;"
@@ -201,5 +204,4 @@ db/schema.sql              D1 테이블 정의
 db/seed_words.sql          낱말 시드 (scripts/gen-word-seed.mjs로 생성)
 db/seed_sentences.sql      단문·장문 샘플
 docs/plan_rdb_admin_v2.md  이번 작업(스프레드시트→RDB) 설계 문서
-apps-script/               구글시트 연동 흔적 — 더 이상 안 씀
 ```
