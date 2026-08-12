@@ -4,6 +4,7 @@ import { FINGER } from "../kit/keyboard.js";
 import VirtualKeyboard from "../kit/VirtualKeyboard.jsx";
 import StepList from "../kit/StepList.jsx";
 import StatsInline from "../kit/StatsInline.jsx";
+import TypedBox from "../kit/TypedBox.jsx";
 import DoneOverlay from "../kit/DoneOverlay.jsx";
 import { calcCpm, displayAccuracy } from "../kit/stats.js";
 import { JARI_STEPS, genJariSeq } from "../data/jariSteps.js";
@@ -55,9 +56,12 @@ export default function JariScreen({ showHands = true, onDone, onNext }) {
   const [pressedCode, setPressedCode] = useState(null);
   const [stats, setStats] = useState({ correct: 0, wrong: 0 });
   const [elapsed, setElapsed] = useState(0);
+  const [written, setWritten] = useState("");   // "내가 쓴 글" — 한 자 성공하면 비운다
+  const [cpm, setCpm] = useState(0);            // 한 자 성공한 시점에 잰 타수
   const startRef = useRef(null);
   const timerRef = useRef(null);
   const flashRef = useRef(null);
+  const writtenRef = useRef(null);
 
   useEffect(() => {
     if (phase === "playing") {
@@ -97,7 +101,17 @@ export default function JariScreen({ showHands = true, onDone, onNext }) {
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const live = useRef({});
-  live.current = { phase, ks, idx, seq };
+  live.current = { phase, ks, idx, seq, stats };
+
+  // 방금 쓴 자모를 한 번 번쩍 보여 준 뒤 지운다.
+  // 정답 플래시(150ms)와 같은 호흡 — 기다리는 느낌이 없어야 한다.
+  const WRITTEN_HOLD = 160;
+  const showWritten = (text) => {
+    setWritten(text);
+    clearTimeout(writtenRef.current);
+    writtenRef.current = setTimeout(() => setWritten(""), WRITTEN_HOLD);
+  };
+  useEffect(() => () => clearTimeout(writtenRef.current), []);
 
   const handleKey = useCallback((e) => {
     const ignore = ["Tab", "Escape", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Alt", "Control", "Meta", "Shift", "CapsLock", "Enter", "Backspace"];
@@ -105,7 +119,7 @@ export default function JariScreen({ showHands = true, onDone, onNext }) {
     if (!DUBEOL[e.code]) return; // 두벌식 글자 키만
     e.preventDefault();
     if (e.repeat) return;
-    const { phase, ks, idx, seq } = live.current;
+    const { phase, ks, idx, seq, stats } = live.current;
     if (phase === "done" || !ks) return;
     if (phase === "ready") { startRef.current = Date.now(); setPhase("playing"); }
     setPressedCode(e.code);
@@ -115,6 +129,11 @@ export default function JariScreen({ showHands = true, onDone, onNext }) {
     if (ok) {
       setFlash("right"); setTimeout(() => setFlash(null), 150);
       setStats((s) => ({ ...s, correct: s.correct + 1 }));
+      // 자모 하나 성공 = 한 단위 완성 → 쓴 글을 보여 줬다 지우고, 이때 타수를 잰다
+      showWritten(seq[idx]);
+      const sec = (Date.now() - startRef.current) / 1000;
+      setElapsed(sec);
+      setCpm(calcCpm(stats.correct + 1, sec));
       const next = idx + 1;
       if (next >= seq.length) setPhase("done");
       else setIdx(next);
@@ -132,6 +151,7 @@ export default function JariScreen({ showHands = true, onDone, onNext }) {
   const reset = (newSeq) => {
     setSeq(newSeq); setIdx(0); setPhase("ready"); setFlash(null); setPressedCode(null);
     setStats({ correct: 0, wrong: 0 }); setElapsed(0); startRef.current = null;
+    clearTimeout(writtenRef.current); setWritten(""); setCpm(0);
   };
   const restart = () => reset(genJariSeq(step));
   const selectStep = (id) => { setStep(id); reset(genJariSeq(id)); };
@@ -143,14 +163,15 @@ export default function JariScreen({ showHands = true, onDone, onNext }) {
           <span style={{ fontFamily: '"IBM Plex Mono",monospace', fontSize: 11, color: "var(--accent)", letterSpacing: "0.18em", textTransform: "uppercase" }}>CH. 02</span>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, fontFamily: '"Noto Serif KR","Jua",serif' }}>자리연습</h1>
           <div style={{ flex: 1 }} />
-          <StatsInline correct={stats.correct} wrong={stats.wrong} elapsed={elapsed} total={seq.length} idx={idx} />
+          <StatsInline correct={stats.correct} wrong={stats.wrong} cpm={cpm} total={seq.length} idx={idx} />
         </div>
       </div>
 
       <div style={{ flex: 1, display: "flex", alignItems: "flex-start", minHeight: 0, maxWidth: 1180, margin: "0 auto", width: "100%", boxSizing: "border-box", overflow: "hidden", gap: 24, padding: "14px 40px 0px" }}>
         <StepList value={step} onChange={selectStep} steps={JARI_STEPS} />
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minWidth: 0, alignSelf: "stretch" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, alignSelf: "stretch", gap: 8 }}>
           <CharTape seq={seq} idx={idx} flash={flash} />
+          <TypedBox text={written} />
         </div>
         <div style={{ width: 172, flexShrink: 0 }} aria-hidden="true" />
       </div>

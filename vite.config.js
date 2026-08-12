@@ -20,6 +20,8 @@ export default defineConfig({
   },
   test: {
     environment: "node",
-    include: ["src/**/*.test.{js,jsx}"],
+    include: ["src/**/*.test.{js,jsx}", "functions/**/*.test.js"],
+    // node:sqlite(내장 모듈)는 vite가 변환하지 않고 런타임에 그대로 쓰게 한다
+    server: { deps: { external: ["node:sqlite"] } },
   },
 });

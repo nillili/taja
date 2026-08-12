@@ -248,15 +248,17 @@ main:hover::-webkit-scrollbar-thumb {
   color: var(--ink-faint);
   cursor: pointer;
   letter-spacing: 0.04em;
-  margin-bottom: -1.5px;
   transition: color .15s, background .15s;
 }
 .rank-tab + .rank-tab { margin-left: -1px; }
 .rank-tab:hover { color: var(--ink-soft); }
+/* 선택된 탭만 아래로 내려와 밑줄을 덮는다(= 표와 이어진 모양).
+   선택 안 된 탭은 밑줄 위에 얹혀 있어야 구분이 된다. */
 .rank-tab.is-active {
   background: var(--paper-deep);
   border-color: var(--ink);
   border-bottom: 2px solid var(--paper-deep);
+  margin-bottom: -1.5px;
   color: var(--ink);
   font-weight: 700;
 }
@@ -334,6 +336,42 @@ main:hover::-webkit-scrollbar-thumb {
   letter-spacing: 0.12em;
   display: flex;
   justify-content: space-between;
+}
+
+/* TypedBox("내가 쓴 글")의 깜빡이는 커서 */
+.typed-caret {
+  display: inline-block;
+  flex-shrink: 0;
+  width: 2px;
+  height: 24px;
+  margin-left: 2px;
+  background: var(--accent);
+  animation: typed-caret-blink 1.05s step-end infinite;
+}
+@keyframes typed-caret-blink { 50% { opacity: 0; } }
+
+.footer-right {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  /* 우하단에 고정된 화면전환 스위치에 ⚙ 버튼이 가려지지 않도록 자리를 비워 둔다 */
+  margin-right: 200px;
+}
+
+.gear-btn {
+  border: 0;
+  background: none;
+  padding: 0 2px;
+  font-size: 15px;
+  line-height: 1;
+  color: var(--ink-faint);
+  cursor: pointer;
+  opacity: 0.55;
+  transition: opacity 0.15s, transform 0.2s;
+}
+.gear-btn:hover {
+  opacity: 1;
+  transform: rotate(60deg);
 }
 
 /* small */

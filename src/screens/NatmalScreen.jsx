@@ -4,6 +4,7 @@ import { FINGER } from "../kit/keyboard.js";
 import VirtualKeyboard from "../kit/VirtualKeyboard.jsx";
 import StepList from "../kit/StepList.jsx";
 import StatsInline from "../kit/StatsInline.jsx";
+import TypedBox from "../kit/TypedBox.jsx";
 import DoneOverlay from "../kit/DoneOverlay.jsx";
 import { calcCpm, displayAccuracy } from "../kit/stats.js";
 import { genWords } from "../data/wordSteps.js";
@@ -71,9 +72,12 @@ export default function NatmalScreen({ showHands = true, initialStep = 1, initia
   const [pressedCode, setPressedCode] = useState(null);
   const [stats, setStats] = useState({ correct: 0, wrong: 0 });
   const [elapsed, setElapsed] = useState(0);
+  const [written, setWritten] = useState("");   // "내가 쓴 글" — 낱말 하나 성공하면 비운다
+  const [cpm, setCpm] = useState(0);            // 낱말 하나 성공한 시점에 잰 타수
   const startRef = useRef(null);
   const timerRef = useRef(null);
   const flashRef = useRef(null);
+  const writtenRef = useRef(null);
 
   const decomposed = useMemo(() => decomposeWord(seq[idx] || ""), [seq, idx]);
   const keys = decomposed.flat;
@@ -113,7 +117,17 @@ export default function NatmalScreen({ showHands = true, initialStep = 1, initia
   }, [phase]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const live = useRef({});
-  live.current = { phase, target, keyIndex, keys, idx, seq };
+  live.current = { phase, target, keyIndex, keys, idx, seq, stats };
+
+  // 낱말을 완성하면 한 번 번쩍 보여 준 뒤 지운다. 쓰는 중에는 계속 남는다.
+  // 정답 플래시(130ms)와 같은 호흡 — 기다리는 느낌이 없어야 한다.
+  const WRITTEN_HOLD = 160;
+  const showWritten = (text, clearAfter) => {
+    setWritten(text);
+    clearTimeout(writtenRef.current);
+    if (clearAfter) writtenRef.current = setTimeout(() => setWritten(""), clearAfter);
+  };
+  useEffect(() => () => clearTimeout(writtenRef.current), []);
 
   const handleKey = useCallback((e) => {
     const ignore = ["Tab", "Escape", "F1", "F2", "F3", "F4", "F5", "F6", "F7", "F8", "F9", "F10", "F11", "F12", "Alt", "Control", "Meta", "Shift", "CapsLock", "Enter", "Backspace"];
@@ -122,7 +136,7 @@ export default function NatmalScreen({ showHands = true, initialStep = 1, initia
     if (!typed && e.code !== "Space") return;
     e.preventDefault();
     if (e.repeat) return;
-    const { phase, target, keyIndex, keys, idx, seq } = live.current;
+    const { phase, target, keyIndex, keys, idx, seq, stats } = live.current;
     if (phase === "done" || !target) return;
     if (phase === "ready") { startRef.current = Date.now(); setPhase("playing"); }
     setPressedCode(e.code);
@@ -134,10 +148,22 @@ export default function NatmalScreen({ showHands = true, initialStep = 1, initia
       setStats((s) => ({ ...s, correct: s.correct + 1 }));
       const nextKey = keyIndex + 1;
       if (nextKey >= keys.length) {
+        // 낱말 하나 성공 = 한 단위 완성 → 쓴 낱말을 보여 줬다 지우고, 이때 타수를 잰다
+        showWritten(seq[idx], WRITTEN_HOLD);
+        const sec = (Date.now() - startRef.current) / 1000;
+        setElapsed(sec);
+        setCpm(calcCpm(stats.correct + 1, sec));
         const nextWord = idx + 1;
         if (nextWord >= seq.length) setPhase("done");
         else { setIdx(nextWord); setKeyIndex(0); }
       } else {
+        // 쓰는 중: 완성된 글자 + 조합 중인 자모를 그대로 보여 준다
+        const ci = target.charIndex;
+        const nextCi = keys[nextKey].charIndex;
+        const partial = nextCi === ci   // 아직 조합 중인 글자면 지금까지 친 자모를 이어 붙인다
+          ? keys.slice(keys.findIndex((k) => k.charIndex === ci), nextKey).map((k) => k.jamo).join("")
+          : "";
+        showWritten(seq[idx].slice(0, nextCi) + partial);
         setKeyIndex(nextKey);
       }
     } else {
@@ -155,6 +181,7 @@ export default function NatmalScreen({ showHands = true, initialStep = 1, initia
     setSeq(newSeq); setIdx(0); setKeyIndex(0); setPhase("ready");
     setFlash(null); setPressedCode(null);
     setStats({ correct: 0, wrong: 0 }); setElapsed(0); startRef.current = null;
+    clearTimeout(writtenRef.current); setWritten(""); setCpm(0);
   };
   const restart = () => reset(genWords(step, mode));
   const selectStep = (id) => { setStep(id); setMode("basic"); reset(genWords(id, "basic")); };
@@ -167,14 +194,15 @@ export default function NatmalScreen({ showHands = true, initialStep = 1, initia
           <span style={{ fontFamily: '"IBM Plex Mono",monospace', fontSize: 11, color: "var(--accent)", letterSpacing: "0.18em", textTransform: "uppercase" }}>CH. 03</span>
           <h1 style={{ margin: 0, fontSize: 24, fontWeight: 700, fontFamily: '"Noto Serif KR","Jua",serif' }}>낱말연습</h1>
           <div style={{ flex: 1 }} />
-          <StatsInline correct={stats.correct} wrong={stats.wrong} elapsed={elapsed} total={seq.length} idx={idx} unit="낱말" />
+          <StatsInline correct={stats.correct} wrong={stats.wrong} cpm={cpm} total={seq.length} idx={idx} unit="낱말" />
         </div>
       </div>
 
       <div style={{ flex: 1, display: "flex", alignItems: "flex-start", minHeight: 0, maxWidth: 1180, margin: "0 auto", width: "100%", boxSizing: "border-box", padding: "14px 40px 0", gap: 24, overflow: "hidden" }}>
         <StepList value={step} onChange={selectStep} steps={NATMAL_STEPS} mode={mode} onMode={selectMode} />
-        <div style={{ flex: 1, display: "flex", alignItems: "center", justifyContent: "center", minWidth: 0, alignSelf: "stretch" }}>
+        <div style={{ flex: 1, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", minWidth: 0, alignSelf: "stretch", gap: 8 }}>
           <WordTape seq={seq} idx={idx} curCharIndex={curCharIndex} flash={flash} />
+          <TypedBox text={written} />
         </div>
         <div style={{ width: 172, flexShrink: 0 }} aria-hidden="true" />
       </div>

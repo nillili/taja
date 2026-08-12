@@ -1,6 +1,6 @@
 # 한글 타자연습 — 프로젝트 현황
 
-> 마지막 업데이트: 2026-06-02
+> 마지막 업데이트: 2026-08-12 (배포 완료)
 
 ---
 
@@ -13,8 +13,10 @@
 | Cloudflare 프로젝트 | taja (계정: ds1lph@gmail.com) |
 | D1 DB 이름 | taja-db |
 | D1 DB ID | b92ae9c0-3d14-408f-aa38-24a3a6c07b18 |
-| Apps Script URL | https://script.google.com/macros/s/AKfycbxAcGy7vdtqLRmPVtRAJgYgzVxAnnUPnLAmxOBK2M-NH13MtOWyDBIvomwhE9sd8KKDhQ/exec |
-| 구글시트 ID | 1Z4KvYs0VSUDWGNaELbIN5aTgA2iXuslOSNsxAu7K7uA |
+| 관리자 PIN | Pages 환경변수 `ADMIN_PIN` (설정됨). 미설정 시 코드 기본값 사용 |
+
+> 구글시트/Apps Script는 더 이상 쓰지 않는다. 낱말·문장의 원본은 D1이고,
+> 관리 화면(⚙ → PIN)에서 직접 고친다. `apps-script/`는 참고용 흔적이라 지워도 된다.
 
 ---
 
@@ -44,28 +46,58 @@
 
 ### 기록 저장 / 명예의전당
 - 연습 완료 시 자동저장 (프롬프트 없음) → D1 `today_records`
-- 오늘 기록 (한국시간 기준) — 동일인 복수 기록 모두 저장
-- 홈 명예의전당: wpm 내림차순, 순위/이름·학교/최고타수/정확도
-- `hall_of_fame` 테이블(단문/장문용) — 상위 20인, 미사용(단문/장문 미구현)
+- 홈 명예의전당 탭 2개 (wpm 내림차순, 순위/이름·학교/최고타수/정확도)
+  - **오늘** — 한국시간 기준 오늘 기록 전부 (동일인 복수 기록 모두 표시)
+  - **이전** — 오늘을 뺀 최근 2주(`RECENT_DAYS=14`), 한 사람(이름+학교)당 최고 기록 한 줄, 상위 50
+- `hall_of_fame` 테이블(단문/장문용) — 상위 20인, 미사용(단문/장문 화면 미구현)
+
+### 내가 쓴 글 (입력칸)
+- 글자 띠 아래에 지금까지 입력한 내용을 입력칸처럼 표시 — `src/kit/TypedBox.jsx`
+- **한 단위를 성공하면 비워진다** — 자리연습은 자모 하나, 낱말연습은 낱말 하나
+  (완성된 글자를 0.45초 보여 준 뒤 지움. 다음 키를 치면 바로 교체)
+- 낱말연습은 조합 과정이 그대로 보인다: `ㅎ → 하 → 하ㅁ → 하마` → 지워짐
+- **타수는 이 성공 시점에만 계산·갱신**된다 (가만히 있어도 숫자가 떨어지지 않음)
+- 단문/장문 구현 시: `<TypedBox align="left" width="100%" />` (한 문장이 들어가게 왼쪽 정렬)
 
 ### 디자인
 - 종이/게임 두 테마 전환 (우하단 스위치), 라이트 고정
 - 스크롤 없는 한 화면 레이아웃
 - 개인 최고 갱신 시 DoneOverlay에 "🎉 개인 최고 기록!" 뱃지
 
+### 설정(관리) 화면 — 데이터 관리
+- 홈 푸터 `v 0.1` 오른쪽 ⚙ 버튼 → PIN(9956) → 탭 3개: **낱말관리 / 단문연습 / 장문연습**
+- 공통 기능: 목록(단계별 필터) · 개별 등록 · 인라인 수정 · 삭제
+  · 현재 내용을 업로드 형식 그대로 **xlsx 내려받기(샘플)** · 엑셀 업로드로 전체 교체 · 직전 교체 되돌리기
+- 엑셀 형식 (첫 줄은 제목 행)
+
+  | 탭 | 칸 |
+  |---|---|
+  | 낱말 | 8칸 = 1단계_기본, 1단계_심화, … 4단계_심화 (구글시트와 동일) |
+  | 단문 | 3칸 = 1단계, 2단계, 3단계 (칸마다 문장 하나) |
+  | 장문 | 3칸 = 난이도, 제목, 문장 (같은 제목끼리 적은 순서가 곧 문장 순서) |
+
+- 서버 보호: Origin 검증 · PIN 시도 제한(10분 5회 → 429) · 교체 요청 전체 선검증 · batch 원자성
+- `src/screens/AdminScreen.jsx`, `functions/api/[[path]].js`
+
 ### 단문/장문
-- Placeholder 상태 (콘텐츠 없음, 다음 범위)
+- 연습 화면은 아직 Placeholder (다음 범위)
+- DB는 준비 완료: `sentences` 테이블 + 샘플 데이터(`db/seed_sentences.sql`)
+  단문 18개(난이도별 6개), 장문 2편 12문장 — 관리 화면에서 바로 편집 가능
 
 ---
 
 ## 미구현 / 다음 할 일
 
-- [ ] **단문연습** (CH.04)
-  - 구글시트에 `단문_1~4단계` 탭 추가 (낱말과 같은 구조)
-  - 완성 후 단문 기록은 `hall_of_fame` (board='danmun')에 저장
+> DB·관리 화면·샘플 데이터는 이미 준비돼 있다. 남은 건 **연습 화면**뿐이다.
+
+- [ ] **단문연습** (CH.04) — 연습 화면만 만들면 됨
+  - 출제: `SELECT ... FROM sentences WHERE kind='danmun' AND level=? ORDER BY RANDOM()`
+  - 입력칸은 `<TypedBox align="left" width="100%" />` (한 문장이 들어가게 왼쪽 정렬)
+  - 완료 기록은 `hall_of_fame` (board='danmun')에 저장
 - [ ] **장문연습** (CH.05) — 단문 이후
-- [ ] **캐릭터 선택** — 구글시트 캐릭터 탭 비어있어서 보류
-- [ ] **단문/장문 명예의전당** — 홈 랭킹 탭 추가
+  - 같은 `sentences` 테이블에서 `kind='jangmun' AND level=? AND title=?`를 seq 순으로 이어 붙이면 수필 한 편
+- [ ] **단문/장문 명예의전당** — 홈 랭킹 탭 추가 (`hall_of_fame` 테이블은 이미 있음)
+- [ ] **캐릭터 선택** — 콘텐츠가 없어서 보류
 
 ---
 
@@ -76,9 +108,13 @@ Frontend   Vite + React 18, 빌드 없는 인라인 CSS-in-JS
 Hosting    Cloudflare Pages (taja-cxm.pages.dev)
 API/DB     Cloudflare Pages Function + D1 (SQLite)
            functions/api/[[path]].js → db/schema.sql
-낱말데이터  구글시트 CSV → src/data/wordSteps.js (내장 fallback)
-기록저장   D1 직접 (Apps Script는 낱말데이터용으로만 사용 가능, 현재 미사용)
-테스트     Vitest (22개: 한글분해·정확도·레벨연결)
+낱말데이터  D1 words 테이블이 원본 (관리 화면에서 수정)
+           API 실패 시 src/data/wordSteps.js 내장 데이터로 fallback
+           시드: node scripts/gen-word-seed.mjs → db/seed_words.sql (787개)
+문장데이터  D1 sentences 테이블 (단문/장문 공용) — db/seed_sentences.sql
+기록저장   D1 직접 (Apps Script는 사용 안 함)
+테스트     Vitest (50개: 한글분해·정확도·레벨연결 22 + 관리자 API·스키마 28)
+           API 테스트는 node:sqlite에 db/schema.sql을 적용해 제약까지 검증
 ```
 
 ---
@@ -91,9 +127,10 @@ cd /home/hong-notebook/works/taja
 # 의존성 설치 (최초 1회)
 npm install
 
-# 개발 서버 (Vite + Wrangler D1 통합)
+# 개발 서버 (vite build --watch + Wrangler D1)
 npm run dev:full
 # → 브라우저: http://localhost:8788  ← 반드시 이 포트 사용
+# 코드를 고치면 자동으로 다시 빌드된다(1~3초). 브라우저는 직접 새로고침.
 
 # 빌드 + 배포
 npm run deploy
@@ -107,14 +144,20 @@ npm test
 
 > ⚠️ `npm run dev`(5173 포트)로 접속하면 `/api`가 HTML을 반환해 기록 저장이 안 됨.
 > 반드시 `npm run dev:full` → `localhost:8788` 사용.
+>
+> ⚠️ 8788은 `wrangler.toml`의 `pages_build_output_dir` 때문에 **`dist/`를 서빙**한다.
+> 그래서 dev:full은 `vite build --watch`로 dist를 계속 다시 굽는다(HMR 아님).
+> 저장 후 빌드가 끝날 때까지 1~3초 기다렸다가 새로고침할 것.
 
 ---
 
 ## D1 스키마 관리
 
 ```bash
-# 로컬 스키마 적용
+# 로컬 스키마 + 시드 적용 (최초 1회)
 npx wrangler d1 execute taja-db --local --file=db/schema.sql
+npx wrangler d1 execute taja-db --local --file=db/seed_words.sql
+npx wrangler d1 execute taja-db --local --file=db/seed_sentences.sql
 
 # 원격(실서버) 스키마 적용
 npx wrangler d1 execute taja-db --remote --file=db/schema.sql
@@ -136,20 +179,27 @@ src/
     stats.js               타수/정확도/통과판정 (원시값 90% 기준)
     VirtualKeyboard.jsx    가상키보드 + 손가이드 + Shift 강조
     StepList.jsx           단계 선택 (기본/심화 내장)
-    StatsInline.jsx        진행/타수/정확도 인라인 표시
+    StatsInline.jsx        진행/타수/정확도 인라인 표시 (타수는 화면에서 받아 씀)
+    TypedBox.jsx           "내가 쓴 글" 입력칸 (align center/left)
     DoneOverlay.jsx        완료 오버레이 (다음단계 연결 버튼 포함)
   data/
-    wordSteps.js           낱말 데이터 (시트 기반 내장 fallback)
+    wordSteps.js           낱말 fallback + 출제 함수(genWords). D1 데이터로 교체됨
     jariSteps.js           자리연습 단계 정의
     progress.js            레벨 연결 규칙 (90% → 다음 연습)
-    api.js                 /api 호출 래퍼 (D1)
+    api.js                 /api 호출 래퍼 (공개 + 관리자)
     user.js                localStorage 사용자/최고기록
   screens/
-    JariScreen.jsx / NatmalScreen.jsx / HomeScreen.jsx / PlaceholderScreen.jsx
+    JariScreen.jsx / NatmalScreen.jsx / HomeScreen.jsx
+    AdminScreen.jsx        설정(PIN) → 낱말·단문·장문 관리
+    PlaceholderScreen.jsx
   styles/
     base.css               종이 테마 토큰
     game-theme.css         게임 테마 오버라이드
-functions/api/[[path]].js  Cloudflare Pages Function (D1 쿼리)
+functions/api/[[path]].js  Cloudflare Pages Function (D1 쿼리 + 관리자 API)
+functions/api/api.test.js  관리자 API·스키마 회귀 검사 (node:sqlite)
 db/schema.sql              D1 테이블 정의
-apps-script/Code.gs        구글시트 읽기/쓰기 (현재 미사용)
+db/seed_words.sql          낱말 시드 (scripts/gen-word-seed.mjs로 생성)
+db/seed_sentences.sql      단문·장문 샘플
+docs/plan_rdb_admin_v2.md  이번 작업(스프레드시트→RDB) 설계 문서
+apps-script/               구글시트 연동 흔적 — 더 이상 안 씀
 ```

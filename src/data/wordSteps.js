@@ -818,9 +818,21 @@ export const WORD_STEPS = {
   }
 };
 
+// 실제로 출제에 쓰는 데이터. 앱 시작 시 D1에서 받아오면 이걸로 교체된다.
+// (받아오기 전이거나 실패하면 위 내장 WORD_STEPS 그대로)
+let ACTIVE = WORD_STEPS;
+let VERSION = 0;
+
+export function setWordSource(steps) {
+  if (steps && Object.keys(steps).length) { ACTIVE = steps; VERSION++; }
+}
+export function wordSourceVersion() { return VERSION; }
+
 // 단계/모드의 단어 중 무작위 10개
 export function genWords(stepId, modeId) {
-  const step = WORD_STEPS[String(stepId)] || WORD_STEPS["1"];
-  const src = modeId === "adv" ? step.adv : step.basic;
-  return shuffle(src).slice(0, 10);
+  const key = String(stepId);
+  const step = ACTIVE[key] || WORD_STEPS[key] || WORD_STEPS["1"];
+  const src = (modeId === "adv" ? step.adv : step.basic) || [];
+  const safe = src.length ? src : (WORD_STEPS[key] || WORD_STEPS["1"])[modeId === "adv" ? "adv" : "basic"];
+  return shuffle(safe).slice(0, 10);
 }

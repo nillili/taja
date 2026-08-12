@@ -6,9 +6,11 @@ import HomeScreen from "./screens/HomeScreen.jsx";
 import JariScreen from "./screens/JariScreen.jsx";
 import NatmalScreen from "./screens/NatmalScreen.jsx";
 import PlaceholderScreen from "./screens/PlaceholderScreen.jsx";
+import AdminScreen from "./screens/AdminScreen.jsx";
 import { TABS } from "./data/tabs.js";
 import { getUser, saveUser, updateBestIfHigher } from "./data/user.js";
-import { saveRecord } from "./data/api.js";
+import { saveRecord, getWords } from "./data/api.js";
+import { setWordSource } from "./data/wordSteps.js";
 
 const STYLE_KEY = "typing.themeStyle.v1";
 
@@ -33,6 +35,10 @@ export default function App() {
     window.addEventListener("resize", measure);
     return () => window.removeEventListener("resize", measure);
   }, []);
+
+  // 낱말 데이터는 D1이 원본 — 앱 시작 때 받아 출제 데이터로 쓴다.
+  // (실패하면 wordSteps.js 내장 데이터가 그대로 유지된다)
+  useEffect(() => { getWords().then(setWordSource); }, []);
 
   // 연습 완료 → "오늘" 기록 자동 저장 (비동기, 실패해도 앱 흐름 안 막음)
   // 개인 최고 갱신 여부는 localStorage에 기록 → DoneOverlay 뱃지 표시용
@@ -78,6 +84,7 @@ export default function App() {
         onNext={handleNext}
       />
     );
+    if (screen === "admin") return <AdminScreen />;
     const currentTab = TABS.find((t) => t.id === screen);
     return <PlaceholderScreen tab={currentTab} />;
   };

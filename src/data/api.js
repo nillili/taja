@@ -19,7 +19,7 @@ async function apiFetch(action, params = {}, init = {}) {
   }
 }
 
-// ── 낱말 데이터 (내장 fallback 사용, API 없이도 동작) ──────────────
+// ── 낱말 데이터 (D1이 원본, 실패 시 내장 fallback) ─────────────────
 let _wordsCache = null;
 export async function getWords() {
   if (_wordsCache) return _wordsCache;
@@ -27,6 +27,9 @@ export async function getWords() {
   _wordsCache = (data && data.steps) ? data.steps : WORD_STEPS;
   return _wordsCache;
 }
+
+// 관리 화면에서 단어를 바꾼 뒤 호출 → 다음 getWords()가 서버를 다시 읽는다
+export function invalidateWords() { _wordsCache = null; }
 
 // ── 기록 읽기 ──────────────────────────────────────────────────────
 // board: "today" | "danmun" | "jangmun"
@@ -52,5 +55,26 @@ export async function saveRecord(data) {
     return await res.json();
   } catch {
     return null;
+  }
+}
+
+// ── 관리자 API (PIN 동봉 POST) ─────────────────────────────────────
+// 상태코드와 무관하게 JSON 본문을 그대로 돌려준다 → UI가 error 메시지를 쓸 수 있다.
+export async function adminApi(action, params = {}) {
+  try {
+    const url = new URL("/api", window.location.origin);
+    const res = await fetch(url.toString(), {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ action, ...params }),
+    });
+    const ct = res.headers.get("content-type") || "";
+    if (!ct.includes("application/json")) {
+      return { ok: false, error: "api unavailable", status: res.status };
+    }
+    const body = await res.json();
+    return { ...body, status: res.status };
+  } catch {
+    return { ok: false, error: "network" };
   }
 }

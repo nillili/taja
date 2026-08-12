@@ -185,13 +185,13 @@ html[data-theme-style="game"] .rank-tab {
   font-family: var(--font-display);
   background: var(--paper-deep);
   padding: 9px 22px 10px;
-  margin-bottom: -2px;
 }
 html[data-theme-style="game"] .rank-tab + .rank-tab { margin-left: 6px; }
 html[data-theme-style="game"] .rank-tab.is-active {
   background: var(--g-yellow);
   border-color: var(--ink);
-  border-bottom: 2px solid var(--g-yellow);
+  border-bottom: 2.5px solid var(--g-yellow);
+  margin-bottom: -2.5px;   /* 컨테이너 밑줄(2.5px)만큼만 내려와 덮는다 */
   color: var(--ink);
 }
 html[data-theme-style="game"] .rank-tabs { border-bottom: 2.5px solid var(--ink); }

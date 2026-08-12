@@ -15,14 +15,16 @@ const KEY_CENTERS = (() => {
   return map;
 })();
 
-/* 손가락 끝점 SVG 좌표 (왼손 기준, viewBox 0 0 240 220) */
-const FINGERTIP = {
-  pinky:  { x: 83,  y: 30  },
-  ring:   { x: 119, y: 14  },
-  middle: { x: 149, y: 4   },
-  index:  { x: 185, y: 27  },
-  thumb:  { x: 237, y: 150 },
+/* 손가락 기하 (왼손 기준 SVG 좌표, viewBox 0 0 240 220)
+   base: 손가락 뿌리(손등 윗변), tip: 기본 자세의 손끝, bw/tw: 뿌리/끝 반폭 */
+const FINGERS = {
+  pinky:  { base: { x: 83,  y: 110 }, tip: { x: 83,  y: 30 }, bw: 13, tw: 10 },
+  ring:   { base: { x: 114, y: 106 }, tip: { x: 119, y: 14 }, bw: 14, tw: 11 },
+  middle: { base: { x: 146, y: 101 }, tip: { x: 149, y: 4  }, bw: 14, tw: 11 },
+  index:  { base: { x: 178, y: 105 }, tip: { x: 185, y: 27 }, bw: 14, tw: 10 },
 };
+
+const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
 
 /* 손 div 크기 및 SVG → keyboard 좌표 변환 상수 */
 const HAND_DIV_W = Math.round(0.46 * ROW_WIDTH);
@@ -35,12 +37,12 @@ const ORG_R   = ROW_WIDTH - ORG_L - HAND_DIV_W;           // right:2% (오른손
 const ORG_TOP = -2;                                         // top:-2px
 
 function getTipPos(finger, side) {
-  const t = FINGERTIP[finger];
-  if (!t) return null;
-  const sx = side === "R" ? 240 - t.x : t.x; // 오른손은 SVG가 좌우 반전
+  const fin = FINGERS[finger];
+  if (!fin) return null;
+  const sx = side === "R" ? 240 - fin.tip.x : fin.tip.x; // 오른손은 SVG가 좌우 반전
   return {
     x: (side === "R" ? ORG_R : ORG_L) + SVG_DX + sx * SVG_SC,
-    y: ORG_TOP + SVG_DY + t.y * SVG_SC,
+    y: ORG_TOP + SVG_DY + fin.tip.y * SVG_SC,
   };
 }
 
@@ -92,10 +94,14 @@ function KeyCap({ data, isTarget, isPressed }) {
   }
 
   if (isLetter) {
+    const isHomeBump = data.c === "KeyF" || data.c === "KeyJ"; // ㄹ/ㅓ 기본자리 양각
     return (
       <div style={{ ...base, flexDirection: "column", alignItems: "stretch", justifyContent: "space-between", padding: "5px 7px" }}>
         <span style={{ fontSize: 22, fontFamily: '"Noto Serif KR","Jua",serif', fontWeight: isTarget ? 700 : 500, lineHeight: 1, color: isTarget ? "#fff" : "var(--ink)", alignSelf: "flex-start" }}>{top}</span>
         <span style={{ fontSize: 11, fontFamily: '"IBM Plex Mono",monospace', color: isTarget ? "rgba(255,255,255,0.7)" : "var(--ink-faint)", alignSelf: "flex-end", lineHeight: 1 }}>{main}</span>
+        {isHomeBump && (
+          <span style={{ position: "absolute", bottom: 4, left: "50%", transform: "translateX(-50%)", width: 16, height: 3, borderRadius: 2, background: isTarget ? "rgba(255,255,255,0.8)" : "var(--ink-faint)" }} />
+        )}
       </div>
     );
   }
@@ -110,7 +116,46 @@ function KeyCap({ data, isTarget, isPressed }) {
 }
 
 /* ── 손 SVG (왼손 기준, 오른손은 좌우 반전) ───────────────────────── */
-function HandSVG({ side, highlightFinger }) {
+
+/* 손가락을 base에서 수직 위로 뻗은 캡슐로 그린다 (실제 방향·길이는 transform이 담당) */
+function fingerPath({ base, tip, bw, tw }) {
+  const len = Math.hypot(tip.x - base.x, tip.y - base.y);
+  const ty = base.y - len;
+  return `M ${base.x - bw} ${base.y} L ${base.x - tw} ${ty} Q ${base.x} ${ty - tw * 1.2} ${base.x + tw} ${ty} L ${base.x + bw} ${base.y} Z`;
+}
+
+/* delta(SVG 좌표)만큼 손끝을 옮기는 CSS transform — 뿌리는 고정, 회전+신축 */
+function fingerTransform({ base, tip }, delta) {
+  const tx = tip.x + (delta ? delta.x : 0);
+  const ty = Math.min(tip.y + (delta ? delta.y : 0), base.y - 18); // 뿌리 아래로 접히지 않게
+  const dx = tx - base.x, dy = ty - base.y;
+  const len0 = Math.hypot(tip.x - base.x, tip.y - base.y);
+  const ang = (Math.atan2(dx, -dy) * 180) / Math.PI;
+  const s = Math.hypot(dx, dy) / len0;
+  return `translate(${base.x}px, ${base.y}px) rotate(${ang}deg) scaleY(${s}) translate(${-base.x}px, ${-base.y}px)`;
+}
+
+/* 손가락 겹침 방지: 누르는 손가락이 새끼 쪽으로 기울면
+   그쪽에 있는 손가락들을 손끝 간격(TIP_GAP)이 유지되도록 바깥으로 밀어낸다 */
+const FINGER_ORDER = ["pinky", "ring", "middle", "index"]; // 왼손 SVG x 오름차순
+const TIP_GAP = 30; // 이웃 손끝 최소 간격 (SVG px)
+
+function fingerDeltas(highlightFinger, fingerDelta) {
+  const deltas = {};
+  if (!FINGERS[highlightFinger] || !fingerDelta) return deltas;
+  deltas[highlightFinger] = fingerDelta;
+  let edge = FINGERS[highlightFinger].tip.x + fingerDelta.x; // 누르는 손끝 위치
+  for (let j = FINGER_ORDER.indexOf(highlightFinger) - 1; j >= 0; j--) {
+    const f = FINGER_ORDER[j];
+    const def = FINGERS[f].tip.x;
+    const limit = edge - TIP_GAP;
+    if (def > limit) deltas[f] = { x: limit - def, y: 0 };
+    edge = Math.min(def, limit);
+  }
+  return deltas;
+}
+
+function HandSVG({ side, highlightFinger, fingerDelta }) {
   const flip = side === "R" ? -1 : 1;
   const baseColor = "rgba(120,118,138,0.32)";
   const strokeColor = "rgba(40,38,60,0.45)";
@@ -123,14 +168,56 @@ function HandSVG({ side, highlightFinger }) {
     <svg viewBox="0 0 240 220" width="100%" height="100%" style={{ overflow: "visible" }}>
       <g transform={`translate(120 0) scale(${flip} 1) translate(-120 0)`}>
         <path d="M 60 200 Q 50 150 60 110 Q 65 95 80 95 L 175 95 Q 195 95 200 115 Q 210 165 195 200 Q 190 215 170 218 L 80 218 Q 65 215 60 200 Z" fill={baseColor} stroke={strokeColor} strokeWidth="1.5" />
-        <path d="M 70 110 Q 64 60 76 35 Q 88 28 96 38 Q 102 60 96 110 Z" fill={fill("pinky")} stroke={strk("pinky")} strokeWidth="1.5" />
-        <path d="M 100 105 Q 96 50 108 22 Q 122 14 130 26 Q 134 50 128 108 Z" fill={fill("ring")} stroke={strk("ring")} strokeWidth="1.5" />
-        <path d="M 132 100 Q 130 35 144 8 Q 158 0 166 12 Q 170 38 160 102 Z" fill={fill("middle")} stroke={strk("middle")} strokeWidth="1.5" />
-        <path d="M 164 102 Q 168 50 180 30 Q 194 24 200 36 Q 200 60 192 108 Z" fill={fill("index")} stroke={strk("index")} strokeWidth="1.5" />
+        {(() => {
+          const deltas = fingerDeltas(highlightFinger, fingerDelta);
+          return Object.entries(FINGERS).map(([name, fin]) => (
+            <path
+              key={name}
+              d={fingerPath(fin)}
+              fill={fill(name)}
+              stroke={strk(name)}
+              strokeWidth="1.5"
+              style={{
+                transform: fingerTransform(fin, deltas[name] || null),
+                transition: "transform 0.22s cubic-bezier(.22,.68,0,1.1)",
+              }}
+            />
+          ));
+        })()}
         <path d="M 200 145 Q 230 135 238 155 Q 240 180 218 195 Q 200 200 195 185 Q 192 165 200 145 Z" fill={fill("thumb")} stroke={strk("thumb")} strokeWidth="1.5" />
       </g>
     </svg>
   );
+}
+
+/* 기본자리: 검지 끝이 ㄹ(KeyF)/ㅓ(KeyJ) 양각 키 위에 오는 위치 */
+const HOME_CODE = { L: "KeyF", R: "KeyJ" };
+const REACH_X = 33, REACH_DOWN = 62;   // 손가락 단독으로 닿는 범위 (키보드 px)
+const PALM_TOP_SVG = 95;               // SVG에서 손등 윗변 y
+const PALM_TOP_MAX = 3 * (KH + GAP);   // 손등 윗변 위쪽 한계선: 아랫글쇠줄(ㅋㅌㅊ…) 윗변
+
+/* 손등 이동(shift)과 손가락 잔여 이동(fingerDelta)을 나눠 계산 */
+function calcHand(side, finger, code) {
+  const homeKey = KEY_CENTERS[HOME_CODE[side]];
+  const homeTip = getTipPos("index", side);
+  const home = { x: homeKey.x - homeTip.x, y: homeKey.y - homeTip.y };
+
+  let palm = { x: 0, y: 0 }, fingerDelta = null;
+  const fin = finger && FINGERS[finger];
+  const kc = code && KEY_CENTERS[code];
+  if (fin && kc) {
+    const tip = getTipPos(finger, side);
+    const dx = kc.x - (tip.x + home.x), dy = kc.y - (tip.y + home.y);
+    // 가로는 REACH 초과분만 손등이 이동. 세로는 위로 뻗을 땐 손등이 따라 올라가고(한계선까지),
+    // 아래로는 손등을 두고 손가락만 굽힌다
+    palm = { x: dx - clamp(dx, -REACH_X, REACH_X), y: dy - clamp(dy, 0, REACH_DOWN) };
+    // 손등 세로 제한: 위로는 한계선(max), 아래로는 기본자리(min)
+    const palmTopHome = ORG_TOP + SVG_DY + PALM_TOP_SVG * SVG_SC + home.y;
+    palm.y = clamp(palm.y, PALM_TOP_MAX - palmTopHome, 0);
+    const fx = (dx - palm.x) / SVG_SC, fy = (dy - palm.y) / SVG_SC;
+    fingerDelta = { x: side === "R" ? -fx : fx, y: fy }; // 오른손은 SVG x 반전
+  }
+  return { shift: { x: home.x + palm.x, y: home.y + palm.y }, fingerDelta };
 }
 
 function HandsOverlay({ targetCode, shiftCode }) {
@@ -149,17 +236,8 @@ function HandsOverlay({ targetCode, shiftCode }) {
     }
   }
 
-  // 손가락 끝이 담당 키 위에 오도록 translate 계산
-  const calcShift = (finger, side, code) => {
-    if (!finger || !code) return { x: 0, y: 0 };
-    const kc  = KEY_CENTERS[code];
-    const tip = getTipPos(finger, side);
-    if (!kc || !tip) return { x: 0, y: 0 };
-    return { x: kc.x - tip.x, y: kc.y - tip.y };
-  };
-
-  const ls = calcShift(leftFinger,  "L", leftCode);
-  const rs = calcShift(rightFinger, "R", rightCode);
+  const L = calcHand("L", leftFinger, leftCode);
+  const R = calcHand("R", rightFinger, rightCode);
 
   const base = {
     position: "absolute", top: "-2px",
@@ -170,11 +248,11 @@ function HandsOverlay({ targetCode, shiftCode }) {
 
   return (
     <div style={{ position: "absolute", inset: 0, pointerEvents: "none", zIndex: 5 }}>
-      <div style={{ ...base, left: "2%", transform: `translate(${ls.x}px, ${ls.y}px)` }}>
-        <HandSVG side="L" highlightFinger={leftFinger} />
+      <div style={{ ...base, left: "2%", transform: `translate(${L.shift.x}px, ${L.shift.y}px)` }}>
+        <HandSVG side="L" highlightFinger={leftFinger} fingerDelta={L.fingerDelta} />
       </div>
-      <div style={{ ...base, right: "2%", transform: `translate(${rs.x}px, ${rs.y}px)` }}>
-        <HandSVG side="R" highlightFinger={rightFinger} />
+      <div style={{ ...base, right: "2%", transform: `translate(${R.shift.x}px, ${R.shift.y}px)` }}>
+        <HandSVG side="R" highlightFinger={rightFinger} fingerDelta={R.fingerDelta} />
       </div>
     </div>
   );

@@ -1,8 +1,9 @@
-import { calcCpm, displayAccuracy } from "./stats.js";
+import { displayAccuracy } from "./stats.js";
 
 // 제목 줄 우측에 들어가는 진행 / 타수 / 정확도 (인라인)
-export default function StatsInline({ correct, wrong, elapsed, total, idx, unit = "자" }) {
-  const cpm = calcCpm(correct, elapsed);
+// cpm은 화면에서 직접 재서 넘겨준다 — 한 자(낱말)를 성공한 시점에만 갱신되므로
+// 가만히 있을 때 숫자가 계속 떨어지지 않는다.
+export default function StatsInline({ correct, wrong, cpm = 0, total, idx, unit = "자" }) {
   const acc = displayAccuracy(correct, wrong);
   const pct = total > 0 ? Math.round((idx / total) * 100) : 0;
   return (
