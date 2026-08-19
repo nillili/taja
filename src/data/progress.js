@@ -26,6 +26,16 @@ export function getNextPractice(result) {
     };
   }
 
-  // natmal adv 완료 → 다음 없음
+  // 단문: 1 → 2 → 3 순차. (단계를 건너뛰고 싶으면 화면 왼쪽에서 직접 고른다)
+  if (result.screen === "danmun" && result.step < 3) {
+    return {
+      screen: "danmun",
+      step: result.step + 1,
+      mode: null,
+      label: `${result.step + 1}단계로 넘어갈까요?`,
+    };
+  }
+
+  // natmal adv / danmun 3단계 완료 → 다음 없음
   return null;
 }

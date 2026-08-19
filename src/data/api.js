@@ -2,6 +2,7 @@
 // API 실패 시 fallback 데이터로 조용히 대체 (연습은 항상 동작).
 
 import { WORD_STEPS } from "./wordSteps.js";
+import { DANMUN_LEVELS, normalizeDanmunLevels } from "./danmunSteps.js";
 
 async function apiFetch(action, params = {}, init = {}) {
   try {
@@ -30,6 +31,24 @@ export async function getWords() {
 
 // 관리 화면에서 단어를 바꾼 뒤 호출 → 다음 getWords()가 서버를 다시 읽는다
 export function invalidateWords() { _wordsCache = null; }
+
+// ── 단문 데이터 (D1이 원본, 실패 시 내장 fallback) ─────────────────
+// 반환: { levels, source: "server" | "fallback", updatedAt }
+// 응답을 그대로 믿지 않고 normalizeDanmunLevels로 걸러서 캐시한다.
+// 서버가 특정 단계를 비워 보낸 것은 관리자의 뜻이므로 fallback으로 덮지 않는다.
+let _sentCache = null;
+export async function getSentences() {
+  if (_sentCache) return _sentCache;
+  const data = await apiFetch("sentences", { kind: "danmun" });
+  const levels = data ? normalizeDanmunLevels(data.levels) : null;
+  _sentCache = levels
+    ? { levels, source: "server", updatedAt: data.updatedAt || null }
+    : { levels: DANMUN_LEVELS, source: "fallback", updatedAt: null };
+  return _sentCache;
+}
+
+// 관리 화면에서 문장을 바꾼 뒤 호출 → 다음 getSentences()가 서버를 다시 읽는다
+export function invalidateSentences() { _sentCache = null; }
 
 // ── 기록 읽기 ──────────────────────────────────────────────────────
 // board: "today" | "danmun" | "jangmun"

@@ -410,3 +410,133 @@ describe("sentences 제약", () => {
     ins("danmun", 1, "", 1, "가".repeat(150));  // 150자는 통과
   });
 });
+
+/* ── 문장 읽기 (공개 GET) ─────────────────────────────────────────── */
+const seedDanmun = () => db.exec(`
+  INSERT INTO sentences (kind, level, title, seq, text) VALUES
+  ('danmun', 1, '', 1, '하늘이 맑다.'),
+  ('danmun', 1, '', 1, '오늘도 좋은 날이다.'),
+  ('danmun', 2, '', 1, '학교 가는 길에 노란 은행잎이 쌓였다.'),
+  ('danmun', 3, '', 1, '아침 일찍 일어나 창문을 열었더니 눈이 내려 있었다.'),
+  ('jangmun', 1, '가을', 1, '장문은 섞이면 안 된다.');
+`);
+
+describe("GET ?action=sentences", () => {
+  it("단문을 난이도별 배열로 돌려준다 (장문은 섞이지 않는다)", async () => {
+    seedDanmun();
+    const { status, body } = await json(get("sentences&kind=danmun"));
+    expect(status).toBe(200);
+    expect(body.levels).toEqual({
+      "1": ["하늘이 맑다.", "오늘도 좋은 날이다."],
+      "2": ["학교 가는 길에 노란 은행잎이 쌓였다."],
+      "3": ["아침 일찍 일어나 창문을 열었더니 눈이 내려 있었다."],
+    });
+    expect(body.updatedAt).toBeTruthy();
+  });
+
+  it("kind를 생략하면 단문으로 본다", async () => {
+    seedDanmun();
+    const { body } = await json(get("sentences"));
+    expect(Object.keys(body.levels)).toEqual(["1", "2", "3"]);
+  });
+
+  it("등록된 단문이 없으면 levels: null (프런트가 내장값을 쓴다)", async () => {
+    const { status, body } = await json(get("sentences&kind=danmun"));
+    expect(status).toBe(200);
+    expect(body.levels).toBeNull();
+  });
+
+  it("DB가 없으면 levels: null", async () => {
+    const res = await onRequest({
+      env: {},
+      request: new Request("http://localhost:8788/api?action=sentences&kind=danmun"),
+    });
+    expect(await res.json()).toEqual({ levels: null });
+  });
+
+  it("아직 지원하지 않는 kind는 400", async () => {
+    seedDanmun();
+    const { status, body } = await json(get("sentences&kind=jangmun"));
+    expect(status).toBe(400);
+    expect(body.error).toBe("unsupported kind");
+  });
+
+  it("같은 난이도 안에서는 등록 순서(id)를 지킨다", async () => {
+    db.exec(`INSERT INTO sentences (kind, level, title, seq, text) VALUES
+      ('danmun', 1, '', 1, '나중'), ('danmun', 1, '', 1, '먼저');`);
+    const { body } = await json(get("sentences&kind=danmun"));
+    expect(body.levels["1"]).toEqual(["나중", "먼저"]);
+  });
+});
+
+/* ── 기록 저장 (단문: 오늘 기록 + 명예의전당 원자 저장) ──────────── */
+const save = (over = {}) =>
+  json(post({
+    action: "saveRecord", board: "danmun",
+    name: "김하늘", school: "우리초", wpm: 100, acc: 95, ...over,
+  }));
+const hof = () => db.rows("SELECT name, school, wpm, accuracy FROM hall_of_fame WHERE board='danmun' ORDER BY wpm DESC, accuracy DESC, recorded_at ASC, id ASC");
+const today = () => db.rows("SELECT name, wpm FROM today_records");
+
+describe("saveRecord — 단문", () => {
+  it("한 번의 요청으로 오늘 기록과 명예의전당에 모두 남는다", async () => {
+    const { status, body } = await save();
+    expect(status).toBe(200);
+    expect(body.ok).toBe(true);
+    expect(today()).toHaveLength(1);
+    expect(hof()).toEqual([{ name: "김하늘", school: "우리초", wpm: 100, accuracy: 95 }]);
+  });
+
+  it("전당은 같은 사람(이름+학교)당 최고 기록 한 줄만 남긴다", async () => {
+    await save({ wpm: 100 });
+    await save({ wpm: 150 });
+    await save({ wpm: 120 });
+    expect(today()).toHaveLength(3);          // 오늘 기록은 친 만큼 다 남는다
+    expect(hof()).toEqual([{ name: "김하늘", school: "우리초", wpm: 150, accuracy: 95 }]);
+  });
+
+  it("타수가 같으면 정확도가 더 높은 기록으로 갱신된다", async () => {
+    await save({ wpm: 100, acc: 90 });
+    await save({ wpm: 100, acc: 97 });
+    expect(hof()).toEqual([{ name: "김하늘", school: "우리초", wpm: 100, accuracy: 97 }]);
+  });
+
+  it("같은 이름이라도 학교가 다르면 다른 사람이다", async () => {
+    await save({ school: "우리초", wpm: 100 });
+    await save({ school: "이웃초", wpm: 90 });
+    expect(hof()).toHaveLength(2);
+  });
+
+  it("21명이 기록해도 상위 20명만 남는다", async () => {
+    for (let i = 1; i <= 21; i++) await save({ name: `학생${i}`, wpm: 100 + i });
+    const rows = hof();
+    expect(rows).toHaveLength(20);
+    expect(rows[0].wpm).toBe(121);
+    expect(rows.map(r => r.name)).not.toContain("학생1"); // 가장 낮은 기록이 밀려난다
+  });
+
+  it("동률 정렬은 정확도 → 먼저 세운 순", async () => {
+    await save({ name: "가", wpm: 100, acc: 90 });
+    await save({ name: "나", wpm: 100, acc: 99 });
+    expect(hof().map(r => r.name)).toEqual(["나", "가"]);
+  });
+
+  it("전당 저장이 실패하면 오늘 기록도 남지 않는다 (한 트랜잭션)", async () => {
+    const orig = db.batch.bind(db);
+    db.batch = (stmts) => orig([...stmts, db.prepare("INSERT INTO 없는테이블 VALUES (1)")]);
+    const { status } = await save();
+    expect(status).toBe(500);
+    expect(today()).toHaveLength(0);
+    expect(hof()).toHaveLength(0);
+  });
+
+  it("자리·낱말연습(board=today)은 예전처럼 오늘 기록에만 남는다", async () => {
+    const { body } = await json(post({
+      action: "saveRecord", board: "today",
+      name: "김하늘", school: "우리초", wpm: 80, acc: 90,
+    }));
+    expect(body.ok).toBe(true);
+    expect(today()).toHaveLength(1);
+    expect(db.rows("SELECT * FROM hall_of_fame")).toHaveLength(0);
+  });
+});

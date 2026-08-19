@@ -7,6 +7,8 @@ import { fetchRecords } from "../data/api.js";
 const RANK_TABS = [
   { id: "today",  label: "오늘",  aside: "오늘의 기록",   empty: "아직 기록이 없어요. 첫 주인공이 되어 보세요!" },
   { id: "recent", label: "이전",  aside: "최근 2주 기록", empty: "지난 2주 동안의 기록이 아직 없어요." },
+  { id: "danmun", label: "단문",  aside: "단문 명예의 전당 (한 사람당 최고 기록)",
+    empty: "아직 단문연습 기록이 없어요. 첫 주인공이 되어 보세요!" },
 ];
 
 export default function HomeScreen({ goTab, user = null }) {

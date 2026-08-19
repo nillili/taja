@@ -4,7 +4,11 @@ import { getBest } from "../data/user.js";
 // 연습 완료 오버레이.
 // isNewBest: 이번 판이 개인 최고를 갱신했으면 true (호출부에서 계산).
 // nextAction = { label, onClick } 가 있으면 다음 단계 연결 버튼을 강조 표시한다.
-export default function DoneOverlay({ correct, wrong, elapsed, onRestart, nextAction }) {
+export default function DoneOverlay({
+  correct, wrong, elapsed, onRestart, nextAction,
+  saveState = null, onRetrySave,   // 기록 저장 결과(선택) — 실패했을 때만 알린다
+  autoFocus = false,               // 완료와 동시에 버튼으로 포커스를 옮길지 (단문처럼 입력칸이 있는 화면용)
+}) {
   const cpm = calcCpm(correct, elapsed);
   const acc = displayAccuracy(correct, wrong);
   // 현재 localStorage 최고기록과 비교해 뱃지 표시
@@ -26,8 +30,23 @@ export default function DoneOverlay({ correct, wrong, elapsed, onRestart, nextAc
           </div>
         )}
 
+        {saveState === "failed" && (
+          <div style={{ fontFamily: '"Noto Serif KR","Jua",serif', fontSize: 14, color: "var(--stamp)", marginBottom: 14 }}>
+            기록을 저장하지 못했어요.
+            {onRetrySave && (
+              <button
+                onClick={onRetrySave}
+                style={{ marginLeft: 8, padding: "4px 10px", border: "1.5px solid var(--stamp)", background: "transparent", color: "var(--stamp)", fontFamily: "inherit", fontSize: 13, cursor: "pointer", borderRadius: 4 }}
+              >
+                다시 저장
+              </button>
+            )}
+          </div>
+        )}
+
         <div style={{ display: "flex", gap: 10, justifyContent: "center" }}>
           <button
+            autoFocus={autoFocus}
             onClick={onRestart}
             style={{
               padding: "11px 26px",

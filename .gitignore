@@ -11,6 +11,9 @@ dist-ssr/
 .design-live/
 .design-url
 
+# 세션 기록(자동 생성, 제품 소스 아님)
+sessions/
+
 # 썸네일 / 잡파일
 .thumbnail
 **/.thumbnail

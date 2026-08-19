@@ -29,3 +29,27 @@ describe("getNextPractice", () => {
     expect(getNextPractice(r("natmal", 4, "adv", 10, 0))).toBeNull();
   });
 });
+
+describe("단문연습 단계 연결", () => {
+  const done = (step, correct = 95, wrong = 5) =>
+    getNextPractice({ screen: "danmun", step, mode: null, correct, wrong });
+
+  it("1단계를 통과하면 2단계를 제안한다", () => {
+    expect(done(1)).toEqual({
+      screen: "danmun", step: 2, mode: null, label: "2단계로 넘어갈까요?",
+    });
+  });
+
+  it("2단계를 통과하면 3단계를 제안한다", () => {
+    expect(done(2)?.step).toBe(3);
+  });
+
+  it("3단계는 다음이 없다", () => {
+    expect(done(3)).toBeNull();
+  });
+
+  it("90%에 못 미치면 제안하지 않는다", () => {
+    expect(done(1, 899, 101)).toBeNull();   // 89.9%
+    expect(done(1, 90, 10)).not.toBeNull(); // 90.0%
+  });
+});

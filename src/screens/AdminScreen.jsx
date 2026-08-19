@@ -81,7 +81,7 @@ function downloadSheet(aoa, filename, sheetName) {
   XLSX.writeFile(wb, filename);
 }
 
-export default function AdminScreen() {
+export default function AdminScreen({ onSentencesChanged }) {
   const [pin, setPin] = useState("");
   const [authed, setAuthed] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -156,7 +156,8 @@ export default function AdminScreen() {
               </div>
               {tab === "words"
                 ? <WordPanel pin={pin} onLockOut={lockOut} />
-                : <SentencePanel key={tab} kind={tab} pin={pin} onLockOut={lockOut} />}
+                : <SentencePanel key={tab} kind={tab} pin={pin} onLockOut={lockOut}
+                                 onChanged={onSentencesChanged} />}
             </>
           )}
       </div>
@@ -336,7 +337,7 @@ function WordPanel({ pin, onLockOut }) {
 }
 
 /* ── 단문 / 장문 관리 ─────────────────────────────────────────────── */
-function SentencePanel({ kind, pin, onLockOut }) {
+function SentencePanel({ kind, pin, onLockOut, onChanged }) {
   const call = useAdmin(pin, onLockOut);
   const isJang = kind === "jangmun";
   const name = isJang ? "장문" : "단문";
@@ -361,7 +362,11 @@ function SentencePanel({ kind, pin, onLockOut }) {
   useEffect(() => { load(); }, []); // eslint-disable-line react-hooks/exhaustive-deps
 
   const after = async (res, okMsg) => {
-    if (res.ok) { setMsg(okMsg); await load(); } else setMsg(errorText(res));
+    if (res.ok) {
+      setMsg(okMsg);
+      await load();
+      await onChanged?.();   // 단문연습 화면에도 즉시 반영
+    } else setMsg(errorText(res));
     return res.ok;
   };
 
@@ -469,7 +474,7 @@ function SentencePanel({ kind, pin, onLockOut }) {
                   {isJang && (i === 0 || visible[i - 1].title !== r.title) && (
                     <div style={titleBar}>📄 {r.title}</div>
                   )}
-                  <ItemRow row={r} editing={editId === r.id} prefix={isJang ? `${r.seq}.` : null}
+                  <ItemRow row={r} editing={editId === r.id} prefix={isJang ? `${r.seq}.` : null} warnLong
                     editText={editText} setEditText={setEditText}
                     onEdit={() => { setEditId(r.id); setEditText(r.text); }}
                     onSave={() => saveEdit(r.id)} onCancel={() => setEditId(null)}
@@ -510,7 +515,7 @@ function SentencePanel({ kind, pin, onLockOut }) {
 }
 
 /* ── 공통 조각 ────────────────────────────────────────────────────── */
-function ItemRow({ row, editing, prefix, editText, setEditText, onEdit, onSave, onCancel, onDelete }) {
+function ItemRow({ row, editing, prefix, editText, setEditText, onEdit, onSave, onCancel, onDelete, warnLong = false }) {
   return (
     <div style={itemRow}>
       {prefix && <span style={seqBadge}>{prefix}</span>}
@@ -525,6 +530,15 @@ function ItemRow({ row, editing, prefix, editText, setEditText, onEdit, onSave, 
       ) : (
         <>
           <span style={{ flex: 1 }}>{row.text}</span>
+          {warnLong && row.text.length > 60 && (
+            // 막지는 않는다. 다만 학생 PC의 화면 폭을 알 수 없어 두 줄로 보일 수 있다는 것만 알려 준다.
+            <span
+              title="학생 화면에서 두 줄로 보일 수 있어요"
+              style={{ fontSize: 11, color: "var(--ink-faint)", border: "1px solid var(--rule)", borderRadius: 4, padding: "1px 6px", whiteSpace: "nowrap" }}
+            >
+              긴 문장 {row.text.length}자
+            </span>
+          )}
           <button onClick={onEdit} style={btn.small}>수정</button>
           <button onClick={onDelete} style={btn.small}>삭제</button>
         </>

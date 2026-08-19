@@ -29,6 +29,18 @@ const SPLIT_JAMO = {
   "ㄾ":["ㄹ","ㅌ"], "ㄿ":["ㄹ","ㅍ"], "ㅀ":["ㄹ","ㅎ"], "ㅄ":["ㅂ","ㅅ"],
 };
 
+// 문장부호 → 키. 단문·장문에 마침표/쉼표가 들어오므로 타수와 키보드 강조가 맞아야 한다.
+// (자판 레이아웃 keyboard.js에 Period·Comma·Slash·Quote·Minus·Digit1이 모두 있다)
+const PUNCT = {
+  ".": { code: "Period", shift: false },
+  ",": { code: "Comma",  shift: false },
+  "?": { code: "Slash",  shift: true  },
+  "!": { code: "Digit1", shift: true  },
+  "'": { code: "Quote",  shift: false },
+  '"': { code: "Quote",  shift: true  },
+  "-": { code: "Minus",  shift: false },
+};
+
 // 자모 하나 → keystroke 배열 [{ code, jamo, shift }]
 function jamoToKeys(j) {
   if (SPLIT_JAMO[j]) return SPLIT_JAMO[j].flatMap(jamoToKeys);
@@ -60,6 +72,8 @@ export function charToKeys(ch) {
   if (JAMO_CODE[ch] || SHIFT_JAMO[ch] || SPLIT_JAMO[ch]) return jamoToKeys(ch);
   // 공백
   if (ch === " ") return [{ code: "Space", jamo: " ", shift: false }];
+  // 문장부호
+  if (PUNCT[ch]) return [{ ...PUNCT[ch], jamo: ch }];
   return [];
 }
 

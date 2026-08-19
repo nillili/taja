@@ -38,6 +38,9 @@ export async function onRequest(context) {
         return await handleGetRecords(db, url.searchParams.get("board") || "today");
       }
       if (action === "words") return await handleGetWords(db);
+      if (action === "sentences") {
+        return await handleGetSentences(db, url.searchParams.get("kind") || "danmun");
+      }
       return jsonRes({ error: "unknown action" }, 400);
     }
 
@@ -99,11 +102,13 @@ async function handleGetRecords(db, board) {
     rows = results;
 
   } else {
+    // 전당은 (이름,학교)당 최고 기록 한 줄만 저장돼 있다(handleSaveRecord).
+    // 동률 정렬 계약을 저장 쪽과 똑같이 맞춰야 순위가 흔들려 보이지 않는다.
     const { results } = await db.prepare(
       `SELECT recorded_at, name, school, wpm, accuracy
        FROM hall_of_fame
        WHERE board = ?
-       ORDER BY wpm DESC
+       ORDER BY wpm DESC, accuracy DESC, recorded_at ASC, id ASC
        LIMIT 20`
     ).bind(board).all();
     rows = results;
@@ -128,26 +133,51 @@ async function handleSaveRecord(db, data) {
   if (!name || !school || !wpm) {
     return jsonRes({ ok: false, error: "missing required fields" }, 400);
   }
+  const w = Number(wpm), a = Number(acc);
 
   if (board === "today") {
+    // 자리·낱말연습: 오늘 기록만
     await db.prepare(
       `INSERT INTO today_records (recorded_at, name, school, wpm, accuracy)
        VALUES (?, ?, ?, ?, ?)`
-    ).bind(now, name, school, Number(wpm), Number(acc)).run();
+    ).bind(now, name, school, w, a).run();
 
   } else if (board === "danmun" || board === "jangmun") {
-    // 명예의전당: insert 후 해당 board에서 하위 기록 정리(상위 20인 유지)
-    await db.prepare(
-      `INSERT INTO hall_of_fame (board, recorded_at, name, school, wpm, accuracy)
-       VALUES (?, ?, ?, ?, ?, ?)`
-    ).bind(board, now, name, school, Number(wpm), Number(acc)).run();
+    // 단문·장문: 오늘 기록 + 명예의전당을 한 번의 요청으로, 하나의 트랜잭션에서.
+    // (요청을 두 번 보내면 한쪽만 성공하는 상태가 생긴다)
+    // 전당은 (이름, 학교)당 최고 기록 한 줄만 남긴다 → 화면의 "상위 20인"과 뜻이 맞는다.
+    await db.batch([
+      db.prepare(
+        `INSERT INTO today_records (recorded_at, name, school, wpm, accuracy)
+         VALUES (?, ?, ?, ?, ?)`
+      ).bind(now, name, school, w, a),
 
-    await db.prepare(
-      `DELETE FROM hall_of_fame
-       WHERE board = ? AND id NOT IN (
-         SELECT id FROM hall_of_fame WHERE board = ? ORDER BY wpm DESC LIMIT 20
-       )`
-    ).bind(board, board).run();
+      // 이번 기록이 더 좋으면(또는 같으면) 이 사람의 옛 기록을 지운다
+      db.prepare(
+        `DELETE FROM hall_of_fame
+          WHERE board = ? AND name = ? AND school = ?
+            AND (wpm < ? OR (wpm = ? AND accuracy <= ?))`
+      ).bind(board, name, school, w, w, a),
+
+      // 더 좋은 기록이 남아 있지 않을 때만 새로 넣는다
+      db.prepare(
+        `INSERT INTO hall_of_fame (board, recorded_at, name, school, wpm, accuracy)
+         SELECT ?, ?, ?, ?, ?, ?
+          WHERE NOT EXISTS (
+            SELECT 1 FROM hall_of_fame WHERE board = ? AND name = ? AND school = ?
+          )`
+      ).bind(board, now, name, school, w, a, board, name, school),
+
+      // 상위 20명만 유지 (동률: 정확도 높은 순 → 먼저 세운 순 → id)
+      db.prepare(
+        `DELETE FROM hall_of_fame
+          WHERE board = ? AND id NOT IN (
+            SELECT id FROM hall_of_fame WHERE board = ?
+             ORDER BY wpm DESC, accuracy DESC, recorded_at ASC, id ASC
+             LIMIT 20
+          )`
+      ).bind(board, board),
+    ]);
   } else {
     return jsonRes({ ok: false, error: "invalid board" }, 400);
   }
@@ -172,6 +202,29 @@ export async function handleGetWords(db) {
     if (steps[s][r.mode]) steps[s][r.mode].push(r.text);
   }
   return jsonRes({ steps, updatedAt: new Date().toISOString() });
+}
+
+// ── 문장 읽기 (공개) ───────────────────────────────────────────────
+// 단문: { levels: { "1": [문장…], "2": […], "3": […] }, updatedAt }
+// 행이 없으면 { levels: null } → 프런트가 내장 fallback(danmunSteps.js)을 쓴다.
+// 무작위 출제는 여기서 하지 않는다 — 프런트가 통째로 받아 캐시해 두고 판마다 뽑는다.
+// (장문은 title·seq 묶음이라 응답 모양이 달라 다음 작업에서 kind='jangmun' 분기를 더한다)
+export async function handleGetSentences(db, kind) {
+  if (kind !== "danmun") return jsonRes({ error: "unsupported kind" }, 400);
+  if (!db) return jsonRes({ levels: null });
+
+  const { results } = await db.prepare(
+    "SELECT level, text FROM sentences WHERE kind = 'danmun' ORDER BY level, id"
+  ).all();
+  if (!results || results.length === 0) return jsonRes({ levels: null });
+
+  const levels = {};
+  for (const r of results) {
+    const k = String(r.level);
+    if (!levels[k]) levels[k] = [];
+    levels[k].push(r.text);
+  }
+  return jsonRes({ levels, updatedAt: new Date().toISOString() });
 }
 
 // ── 관리자 ─────────────────────────────────────────────────────────
