@@ -34,6 +34,12 @@ export function clearUser() {
   localStorage.removeItem(USER_KEY);
 }
 
+// 나가기(로그아웃) 때 함께 부른다. 같은 PC의 다음 사람이 앞사람의
+// 개인 최고기록을 물려받으면 "최고 기록 갱신" 뱃지가 의미를 잃는다.
+export function clearBest() {
+  localStorage.removeItem(BEST_KEY);
+}
+
 // 개인 최고기록: { wpm, acc, screen, step, mode, updatedAt }  (전체 통합 단일값)
 export function getBest() {
   return readJSON(BEST_KEY);

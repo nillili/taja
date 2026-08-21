@@ -96,6 +96,65 @@ body {
   padding-bottom: 4px;
 }
 
+/* ---- 사용자 칩 (로고 오른쪽) ----
+   이름·학교는 지금 기록이 누구 이름으로 남는지 보여주는 표시이자,
+   나가기 버튼으로 다음 사람에게 자리를 넘기는 유일한 통로다. */
+.header-left {
+  display: flex;
+  align-items: flex-end;
+  gap: 14px;
+  min-width: 0;
+}
+.user-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  min-width: 0;
+  max-width: 300px;
+  padding: 4px 5px 4px 12px;
+  border: 1.5px solid var(--rule);
+  border-radius: 999px;
+  background: var(--paper);
+  transform: translateY(-4px);
+}
+.user-chip-name {
+  font-family: "Noto Serif KR", serif;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--ink);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 96px;
+}
+.user-chip-school {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 11px;
+  color: var(--ink-faint);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 130px;
+}
+.user-chip-school::before { content: "·"; margin-right: 6px; }
+.user-chip-out {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: color-mix(in oklab, var(--ink) 9%, transparent);
+  color: var(--ink-soft);
+  cursor: pointer;
+  transition: background .15s, color .15s;
+}
+.user-chip-out:hover { background: var(--stamp); color: #fff; }
+.user-chip-out svg { width: 13px; height: 13px; }
+
 /* tabs */
 .tabs { display: flex; gap: 4px; align-items: flex-end; }
 .tab {
@@ -377,6 +436,9 @@ main:hover::-webkit-scrollbar-thumb {
 /* small */
 @media (max-width: 880px) {
   .header-inner { flex-direction: column; align-items: flex-start; padding: 20px; }
+  .header-left { width: 100%; flex-wrap: wrap; gap: 10px; }
+  .user-chip { transform: none; }
+  .user-chip-school { max-width: 96px; }
   .main-inner { padding: 24px 20px; }
   .menu-grid { grid-template-columns: 1fr 1fr; }
   .tabs { flex-wrap: wrap; }

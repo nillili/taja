@@ -9,7 +9,7 @@ import DanmunScreen from "./screens/DanmunScreen.jsx";
 import PlaceholderScreen from "./screens/PlaceholderScreen.jsx";
 import AdminScreen from "./screens/AdminScreen.jsx";
 import { TABS } from "./data/tabs.js";
-import { getUser, saveUser, updateBestIfHigher } from "./data/user.js";
+import { getUser, saveUser, clearUser, clearBest, updateBestIfHigher } from "./data/user.js";
 import { saveRecord, getWords, getSentences, invalidateSentences } from "./data/api.js";
 import { setWordSource } from "./data/wordSteps.js";
 
@@ -88,6 +88,17 @@ export default function App() {
   const retrySave = () => { if (lastPayload.current) sendRecord(lastPayload.current); };
 
   const goHome = () => { setScreen("home"); setPracticeNav(null); setSaveState(null); };
+
+  // 나가기 — 같은 PC를 다음 사람이 쓰는 상황. 등록 정보를 비우면
+  // 아래 {!user && <RegisterModal/>} 가 다시 떠서 학교·이름을 새로 받는다.
+  // (빈칸으로 엔터를 치면 랜덤 이름으로 바로 들어간다)
+  const handleLogout = () => {
+    if (!confirm(`${user.name}님, 나갈까요?\n다음 사람이 새로 이름을 적어요.`)) return;
+    clearUser();
+    clearBest();
+    setUser(null);
+    goHome();
+  };
   const goTab = (id) => { setScreen(id); setPracticeNav(null); setSaveState(null); };
   const handleNext = (next) => {
     setSaveState(null);
@@ -139,7 +150,7 @@ export default function App() {
 
   return (
     <div className="page" style={vh ? { height: vh } : undefined}>
-      <Header screen={screen} goHome={goHome} goTab={goTab} />
+      <Header screen={screen} goHome={goHome} goTab={goTab} user={user} onLogout={handleLogout} />
       {renderContent()}
       <StyleSwitch value={themeStyle} onChange={setThemeStyle} />
       {!user && <RegisterModal onSubmit={(data) => setUser(saveUser(data))} />}
