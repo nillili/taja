@@ -23,3 +23,6 @@ sessions/
 .vscode/*
 !.vscode/extensions.json
 *.log
+
+# 로컬 비밀값(neobus 열쇠)
+.dev.vars

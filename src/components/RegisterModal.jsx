@@ -27,7 +27,7 @@ export default function RegisterModal({ onSubmit }) {
   // 포커스 트랩
   const onKeyDown = (e) => {
     if (e.key !== "Tab") return;
-    const focusables = cardRef.current.querySelectorAll("input, button");
+    const focusables = cardRef.current.querySelectorAll("input, button, a");
     if (!focusables.length) return;
     const first = focusables[0];
     const last = focusables[focusables.length - 1];
@@ -112,6 +112,13 @@ export default function RegisterModal({ onSubmit }) {
         >
           시작하기
         </button>
+
+        <a
+          href="/auth/start"
+          style={{ display: "block", boxSizing: "border-box", width: "100%", marginTop: 10, padding: "11px 0", border: "2px solid var(--ink)", background: "var(--paper)", color: "var(--ink)", fontFamily: '"Noto Serif KR","Jua",serif', fontSize: 15, fontWeight: 700, textAlign: "center", textDecoration: "none", borderRadius: 8 }}
+        >
+          neobus로 로그인
+        </a>
       </form>
     </div>
   );

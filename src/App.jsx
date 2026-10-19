@@ -9,7 +9,7 @@ import DanmunScreen from "./screens/DanmunScreen.jsx";
 import PlaceholderScreen from "./screens/PlaceholderScreen.jsx";
 import AdminScreen from "./screens/AdminScreen.jsx";
 import { TABS } from "./data/tabs.js";
-import { getUser, saveUser, clearUser, clearBest, updateBestIfHigher } from "./data/user.js";
+import { getUser, saveUser, clearUser, clearBest, updateBestIfHigher, getNeobusUser, neobusLogout } from "./data/user.js";
 import { saveRecord, getWords, getSentences, invalidateSentences } from "./data/api.js";
 import { setWordSource } from "./data/wordSteps.js";
 
@@ -19,6 +19,14 @@ export default function App() {
   const [screen, setScreen] = useState("home");
   const [practiceNav, setPracticeNav] = useState(null);
   const [user, setUser] = useState(() => getUser());
+  // neobus 로그인 세션이 있으면 그 사용자가 우선. 확인이 끝나기 전에는 등록창을 띄우지 않는다.
+  const [authChecked, setAuthChecked] = useState(false);
+  useEffect(() => {
+    getNeobusUser().then((u) => {
+      if (u) setUser(u);
+      setAuthChecked(true);
+    });
+  }, []);
   const [themeStyle, setThemeStyle] = useState(
     () => localStorage.getItem(STYLE_KEY) || "game"
   );
@@ -94,6 +102,7 @@ export default function App() {
   // (빈칸으로 엔터를 치면 랜덤 이름으로 바로 들어간다)
   const handleLogout = () => {
     if (!confirm(`${user.name}님, 나갈까요?\n다음 사람이 새로 이름을 적어요.`)) return;
+    if (user.neobus) neobusLogout();
     clearUser();
     clearBest();
     setUser(null);
@@ -153,7 +162,7 @@ export default function App() {
       <Header screen={screen} goHome={goHome} goTab={goTab} user={user} onLogout={handleLogout} />
       {renderContent()}
       <StyleSwitch value={themeStyle} onChange={setThemeStyle} />
-      {!user && <RegisterModal onSubmit={(data) => setUser(saveUser(data))} />}
+      {authChecked && !user && <RegisterModal onSubmit={(data) => setUser(saveUser(data))} />}
     </div>
   );
 }

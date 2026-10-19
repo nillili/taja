@@ -8,3 +8,15 @@ pages_build_output_dir = "dist"
 binding      = "DB"
 database_name = "taja-db"
 database_id  = "b92ae9c0-3d14-408f-aa38-24a3a6c07b18"
+
+# neobus 로그인(SSO) 세션 저장소 — 로그인 시도 10분, 세션 8시간
+# id는 "npx wrangler kv namespace create AUTH_KV" 로 만든 값
+[[kv_namespaces]]
+binding = "AUTH_KV"
+id      = "dd7689e10d5944d2ae05e2e21284934a"
+
+# neobus 로그인(SSO) — 열쇠(MERGE_CLIENT_SECRET)는 secret 으로만 넣는다
+[vars]
+NEOBUS_ORIGIN      = "https://neobus.org"
+MERGE_CLIENT_ID    = "taja"
+MERGE_REDIRECT_URI = "https://taja-cxm.pages.dev/auth/callback"

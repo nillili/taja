@@ -60,3 +60,26 @@ export function updateBestIfHigher(result) {
   localStorage.setItem(BEST_KEY, JSON.stringify(best));
   return true;
 }
+
+// ── neobus 로그인(SSO) ─────────────────────────────────
+// 세션은 서버(KV)에 있고 브라우저는 쿠키만 갖는다. localStorage 에는 남기지 않는다.
+// 반환: { school, name, neobus: true } | null  (school 칸에는 클래스명)
+export async function getNeobusUser() {
+  try {
+    const res = await fetch("/auth/me", { credentials: "same-origin" });
+    const ct = res.headers.get("content-type") || "";
+    if (!res.ok || !ct.includes("application/json")) return null;
+    const { user } = await res.json();
+    return user ? { school: user.school, name: user.name, neobus: true } : null;
+  } catch {
+    return null;
+  }
+}
+
+export async function neobusLogout() {
+  try {
+    await fetch("/auth/logout", { method: "POST", credentials: "same-origin" });
+  } catch {
+    // 실패해도 화면은 나간다 — 세션은 8시간 뒤 스스로 끝난다
+  }
+}
